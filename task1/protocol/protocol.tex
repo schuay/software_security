@@ -4,6 +4,7 @@
 \usepackage{comment}
 \usepackage[utf8]{inputenc}
 \usepackage{listings}
+\usepackage{hyperref}
 
 \definecolor{OliveGreen}{cmyk}{0.64,0,0.95,0.40}
 \definecolor{Gray}{gray}{0.5}
@@ -30,6 +31,117 @@
 \maketitle
 
 \section{OpenSSH Backdoor}
+
+This protocol details the steps we undertook to add a backdoor for a specific
+RSA key-pair to the OpenSSH 6.2p1.
+
+\subsection{Setup}
+
+As always, we started off by creating a git repo which we initially filled with
+the OpenSSH source code retrieved from \url{http://openbsd.cs.fau.de/pub/OpenBSD/OpenSSH/portable/openssh-6.2p1.tar.gz}.
+Our first priority is to find out which code paths are relevant for
+public key authentication; our first guess is \emph{auth-rsa.c}, but let's
+verify that by running the server through GDB while attempting a connection.
+We compile the server by running
+
+\begin{verbatim}
+$ ./configure --prefix=/usr --libexecdir=/usr/lib/ssh \
+    --sysconfdir=/etc/ssh --with-privsep-user=nobody \
+    --with-xauth=/usr/bin/xauth --with-pid-dir=/run
+$ make
+\end{verbatim}
+
+and make sure that debugging symbols are included by searching for the \verb|-g|
+flag in the GCC command line. We also ensure that no other ssh server is currently
+running with \verb|netstat -ntl|.
+
+We also need to set a few more options in order to run this server as a local
+user (instead of root). To do this, we create a custom \emph{sshd\_config} file
+with the following contents:
+
+\begin{verbatim}
+HostKey /home/jakob/src/software_security/task1/ssh_host_rsa_key
+Port 2022
+AuthorizedKeysFile      .ssh/authorized_keys
+ChallengeResponseAuthentication no
+PrintMotd no # pam does that
+UsePrivilegeSeparation no
+Subsystem       sftp    /usr/lib/ssh/sftp-server
+\end{verbatim}
+
+\emph{ssh\_host\_rsa\_key} is generated with 
+
+\begin{verbatim}
+ssh-keygen -t rsa -f ../ssh_host_rsa_key -N ''
+\end{verbatim}
+
+Finally, we are able to run the server (passing in our custom config file),
+and establish a connection to it:
+
+\begin{verbatim}
+$ /home/jakob/src/software_security/task1/openssh-6.2p1/sshd \
+    -f ../sshd_config -D
+    
+# And in another terminal...
+$ ssh localhost -p 2022
+\end{verbatim}
+
+Our GDB session is also working well:
+
+\begin{verbatim}
+$ gdb /home/jakob/src/software_security/task1/openssh-6.2p1/sshd
+(gdb) break ssh_rsa_verify
+(gdb) run -f ../sshd_config -Dd
+Breakpoint 2, ssh_rsa_verify (key=0x68d4a0, signature=0x697b50
+"", signaturelen=271, data=0x699110 "", datalen=370) at 
+ssh-rsa.c:109
+\end{verbatim}
+
+\subsection{Objectives}
+
+We would now like to accomplish several points:
+
+\begin{itemize}
+\item Grant root access to a specific key-pair, 
+\item even if that user is in DenyUsers or DenyGroups, or
+\item if that user does not exist on the target system.
+\item Furthermore, disguise access by either silencing all
+      output or making it seem like a failed attempt.
+\end{itemize}
+
+\subsection{Implementing the backdoor}
+
+Looking at the log produced by the OpenSSH debug mode, \lstinline|ssh_rsa_verify|
+in \emph{ssh-rsa.c} looks like a decent place to start. The full backtrace
+could also be interesting:
+
+\begin{verbatim}
+(gdb) bt
+#0  ssh_rsa_verify (key=0x697350, signature=0x698a80 "", 
+signaturelen=271, data=0x699160 "", datalen=370) at 
+ssh-rsa.c:109
+#1  0x0000000000444cec in key_verify (key=key@entry=0x697350, 
+signature=signature@entry=0x698a80 "", signaturelen=<optimized out>, 
+data=<optimized out>, datalen=datalen@entry=370) at key.c:1710
+#2  0x000000000041e161 in userauth_pubkey (authctxt=<optimized out>) 
+at auth2-pubkey.c:149
+#3  userauth_pubkey (authctxt=<optimized out>) at auth2-pubkey.c:74
+#4  0x0000000000415ead in input_userauth_request (type=<optimized out>, 
+seq=<optimized out>, ctxt=0x68db70) at auth2.c:287
+#5  0x0000000000447e04 in dispatch_run (mode=mode@entry=0, 
+done=done@entry=0x68db70, ctxt=ctxt@entry=0x68db70) at dispatch.c:98
+#6  0x00000000004154d3 in do_authentication2 
+(authctxt=authctxt@entry=0x68db70) at auth2.c:177
+#7  0x0000000000408840 in main (ac=<optimized out>, av=<optimized out>) 
+at sshd.c:2019
+\end{verbatim}
+
+After poking around in the code, it seems like we need to set 
+\lstinline|authctxt->pw| to root and compare the sent key to our
+hardcoded copy after \lstinline|key = key_from_blob(pkblob, blen)|
+in \emph{auth2-pubkey.c}. We don't have any specific ideas yet on how to handle
+logging since it's scattered all over the place. The best idea is probably
+to return to it after gaining some familiarity with the code.
 
 
 \end{document}
