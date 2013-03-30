@@ -1,0 +1,17 @@
+OpenSSH is a widely used open-source tool, but of course you know that already.
+You did "Introduction to Security", and telnet has never been an option for
+you. However, this task is not about reading SSH - it's about backdoorin' it.
+
+Some time ago you got access to a some server, and somehow the admin left
+/usr/sbin/ world writeable. You already had some fights with the admin about
+security, and he just never listened. So before he can kick you from the box,
+you think: maybe some persistent access mechanism is worthwhile.
+
+Your goal is to modify the source code of the openSSH server to allow a given
+keypair remote access, hard coded in the source. You should use the provided
+keypair here. You'll have to change logging as well, to stay stealthy. Compile,
+test and include patches for every file modified (“diff”) in your submission.
+
+Please upload a ZIP including the the patches (diff) for all changed files, as
+well as a detailed report for documentation and explaining how you solved this
+assignment. 
