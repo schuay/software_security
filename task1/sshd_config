@@ -1,0 +1,7 @@
+HostKey /home/jakob/src/software_security/task1/ssh_host_rsa_key
+Port 2022
+AuthorizedKeysFile	.ssh/authorized_keys
+ChallengeResponseAuthentication no
+PrintMotd no # pam does that
+UsePrivilegeSeparation no
+Subsystem	sftp	/usr/lib/ssh/sftp-server
