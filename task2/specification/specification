@@ -1,0 +1,31 @@
+Analysis of a Web Application
+
+Business Worldwide Solutions is a business oriented newspaper focusing on
+business news. They recently switched their web presence to an in-house CMS.
+The implementation is early beta, but management decided to go live anyways. It
+took only a few days until they were HACKED! The attackers seemed to be some
+sort of animal activists, at least the CEO thinks so, due to all the pony
+pictures that they left on the website. You were called in to help analyse what
+happened, and to fix the implementation so that incidents like these can't
+happen anymore. The only thing they give you, despite plenty of pressure that
+the system has to be back online soon, a copy of the machine as VM - the
+username is "softwaresec", the password is "password". Steps to do:
+
+* Create a timeline of the events. You don't need to reconstruct dates, but
+  rather try to figure out the steps the attackers took in order to bring the
+  site into the current state.  
+
+* Explain if the attackers could have gone beyond defacing the website and what
+  they might have managed to do.  
+
+* Categorize the vulnerabilities according to the OWASP Top Ten. (These may
+  also give you hints, in case you have missed some vulnerabilities.) 
+
+* Fix the web app, so all holes are closed. Try to keep your solution as simple
+  as possible and explain what you did & where to fix the holes.
+
+Please upload a PDF with your report. For multiple files (e.g., diffs) please
+use ZIP. 
+
+Note: The VM is not included in this repo since even its compressed size
+exceeds 500 MiB.
