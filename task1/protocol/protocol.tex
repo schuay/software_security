@@ -47,7 +47,8 @@ We compile the server by running
 \begin{verbatim}
 $ ./configure --prefix=/usr --libexecdir=/usr/lib/ssh \
     --sysconfdir=/etc/ssh --with-privsep-user=nobody \
-    --with-xauth=/usr/bin/xauth --with-pid-dir=/run
+    --with-xauth=/usr/bin/xauth --with-pid-dir=/run \
+    CFLAGS="-g -O0"
 $ make
 \end{verbatim}
 
@@ -142,6 +143,64 @@ hardcoded copy after \lstinline|key = key_from_blob(pkblob, blen)|
 in \emph{auth2-pubkey.c}. We don't have any specific ideas yet on how to handle
 logging since it's scattered all over the place. The best idea is probably
 to return to it after gaining some familiarity with the code.
+
+We now step through a valid authentication attempt with GDB. The first interesting
+bit are the contents of \lstinline|authctxt->pw| after \lstinline|getpwnamallow(user)|:
+
+\begin{verbatim}
+(gdb) p *authctxt->pw
+$9 = {pw_name = 0x68e6c0 "jakob", pw_passwd = 0x68e9f0 "x",
+pw_uid = 1000, pw_gid = 1000, pw_gecos = 0x68ea40 "",
+pw_dir = 0x68ea60 "/home/jakob", pw_shell = 0x68ea80 "/bin/bash"}
+\end{verbatim}
+
+The first attempt is done with the ``none'' method in \lstinline|userauth_none|.
+This obviously fails, but is not counted towards the failed attempt count.
+Then, surprisingly, \lstinline|userauth_pubkey| is executed twice. Debug output
+from both attempts:
+
+\begin{verbatim}
+# The 1st time
+debug1: test whether pkalg/pkblob are acceptable
+debug1: temporarily_use_uid: 1000/1000 (e=1000/1000)
+debug1: trying public key file /home/jakob/.ssh/authorized_keys
+debug1: fd 4 clearing O_NONBLOCK
+debug1: matching key found: file /home/jakob/.ssh/authorized_keys,
+line 2
+Found matching RSA key:
+46:5b:94:27:1f:62:10:00:75:99:58:9a:ad:e5:b5:c7
+debug1: restore_uid: (unprivileged)
+
+# The 2nd time
+debug1: temporarily_use_uid: 1000/1000 (e=1000/1000)
+debug1: trying public key file /home/jakob/.ssh/authorized_keys
+debug1: fd 4 clearing O_NONBLOCK
+debug1: matching key found: file /home/jakob/.ssh/authorized_keys,
+line 2
+Found matching RSA key:
+46:5b:94:27:1f:62:10:00:75:99:58:9a:ad:e5:b5:c7
+debug1: restore_uid: (unprivileged)
+debug1: ssh_rsa_verify: signature correct
+\end{verbatim}
+
+The key seems (which we will need to check) seems to be encoded in \lstinline|pkblob|.
+If we call \lstinline|dump_base_64(stderr, pkblob, blen)|, our public key is
+printed to the console. To get a C representation of our public key, we use
+the following commands:
+
+\begin{verbatim}
+$ grep -o 'AAAA[^ ]*' ssh_host_rsa_key.pub |
+  base64 -d > pubkey.decoded
+$ xxd -i pubkey.decoded > openssh-6.2p1/pubkey.h
+\end{verbatim}
+
+Including this new header in the code, constructing a key from it and comparing
+these with \lstinline|key_equal| returns true, which gives us a way to identify
+the correct key.
+
+
+
+
 
 
 \end{document}
