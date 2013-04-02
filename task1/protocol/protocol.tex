@@ -103,12 +103,14 @@ ssh-rsa.c:109
 We would now like to accomplish several points:
 
 \begin{itemize}
-\item Grant root access to a specific key-pair, 
-\item even if that user is in DenyUsers or DenyGroups, or
-\item if that user does not exist on the target system.
+\item Grant access to a specific key-pair, 
 \item Furthermore, disguise access by either silencing all
       output or making it seem like a failed attempt.
 \end{itemize}
+
+These objectes will be achieved under the assumption that the target exists
+on the target system, that ``publickey'' authentication is enabled, and that
+\verb|DenyUsers,DenyGroups,AllowUsers,AllowGroups| are not in use.
 
 \subsection{Implementing the backdoor}
 
@@ -198,9 +200,31 @@ Including this new header in the code, constructing a key from it and comparing
 these with \lstinline|key_equal| returns true, which gives us a way to identify
 the correct key.
 
+Next, let's take a look at logging. \emph{log.c} tells us that all logging functions
+use \lstinline|do_log|; and to silence logging, all we need to do is introduce
+a flag which causes \lstinline|do_log| to return early if it is set.
 
+It is now fairly trivial to implement our backdoor. Once the authentication process
+reaches the ``publickey'' method, we simply need to check whether the key matches
+our backdoor key. If it does, we set authenticated to \lstinline|true| (which logs
+us in through \lstinline|userauth_finish|) and disable logging by setting
+\lstinline|log_silenced = true|, which skips all logic in \lstinline|do_log|.
 
+We also disables any updates to lastlog which were triggered by calls to \lstinline|login_login|
+and \lstinline|login_logout|, as well as disabling the check whether root logins
+were allowed.
 
+This approach has some weaknesses:
+
+\begin{itemize}
+\item Logging is only disabled once we can actually determine that the key matches
+      the backdoor key. Any prior logs go through unimpeded. Keeping a perfectly
+      valid looking log would require much mure work.
+\item Only the public key is compared while the private signature is ignored. Anybody
+      with the correct public key can log in to the backdoor. While we could wait
+      for the second ``publickey'' attempt (which includes the signature), this
+      would be more work for little benefit.
+\end{itemize}
 
 
 \end{document}
