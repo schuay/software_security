@@ -59,6 +59,8 @@ static char *argv0;
 static log_handler_fn *log_handler;
 static void *log_handler_ctx;
 
+int log_silenced = 0;
+
 extern char *__progname;
 
 #define LOG_SYSLOG_VIS	(VIS_CSTYLE|VIS_NL|VIS_TAB|VIS_OCTAL)
@@ -366,6 +368,10 @@ do_log2(LogLevel level, const char *fmt,...)
 void
 do_log(LogLevel level, const char *fmt, va_list args)
 {
+	if (log_silenced) {
+		return;
+	}
+
 #if defined(HAVE_OPENLOG_R) && defined(SYSLOG_DATA_INIT)
 	struct syslog_data sdata = SYSLOG_DATA_INIT;
 #endif

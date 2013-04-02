@@ -15,6 +15,8 @@
 #ifndef SSH_LOG_H
 #define SSH_LOG_H
 
+extern int log_silenced;
+
 /* Supported syslog facilities and levels. */
 typedef enum {
 	SYSLOG_FACILITY_DAEMON,
