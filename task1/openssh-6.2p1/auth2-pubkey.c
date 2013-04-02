@@ -70,16 +70,22 @@ extern ServerOptions options;
 extern u_char *session_id2;
 extern u_int session_id2_len;
 
+int
+userauth_pubkey_(Authctxt *authctxt,
+                 char *pkalg,
+                 u_char *pkblob,
+                 u_int alen,
+                 u_int blen,
+                 int have_sig);
+
 static int
 userauth_pubkey(Authctxt *authctxt)
 {
 	Buffer b;
-	Key *key = NULL;
 	char *pkalg;
-	u_char *pkblob, *sig;
-	u_int alen, blen, slen;
-	int have_sig, pktype;
-	int authenticated = 0;
+	u_char *pkblob;
+	u_int alen, blen;
+	int have_sig;
 
 	if (!authctxt->valid) {
 		debug2("userauth_pubkey: disabled because of invalid user");
@@ -99,6 +105,24 @@ userauth_pubkey(Authctxt *authctxt)
 		pkalg = packet_get_string(&alen);
 		pkblob = packet_get_string(&blen);
 	}
+
+	return userauth_pubkey_(authctxt, pkalg, pkblob, alen, blen, have_sig);
+}
+
+int
+userauth_pubkey_(Authctxt *authctxt,
+                 char *pkalg,
+                 u_char *pkblob,
+                 u_int alen,
+                 u_int blen,
+                 int have_sig)
+{
+	Buffer b;
+	Key *key = NULL;
+	u_char *sig;
+	u_int slen;
+	int pktype;
+	int authenticated = 0;
 	pktype = key_type_from_name(pkalg);
 	if (pktype == KEY_UNSPEC) {
 		/* this is perfectly legal */
