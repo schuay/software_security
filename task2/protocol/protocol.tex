@@ -61,26 +61,250 @@ use ZIP.
 
 \section{Protocol}
 
+This protocol was written in the assumption that the traces in \verb|.bash_history|
+and \verb|auth.log| were created during the setup of the virtual machine, and are
+not related to the exploit.
+
 \subsection{Event Timeline}
+
+\begin{enumerate}
+\item \verb|login.php|
+
+The attack probably started off with a simple SQL injection exploit on the application's
+\verb|login.php|. Since the login page is not linked to the initial \verb|index.php|,
+the attacker probably guessed the location of the page. \verb|/var/log/apache2/error.log|
+does not show any other access attempts, so the attacker seems to have found the correct
+page on the first try.
+
+\item SQL injection
+
+Once there, the attacker gained access using an SQL injection vulnerability.
+Since the user input is passed straight to the database, it is possible to
+trick the system to grant access to any user. This login page does not even mask
+SQL error messages, further simplifying the exploit. We were able to gain access
+by using the password \verb|' or '' = '|. Note that it is possible to use any arbitrary
+user to log in.
+
+\item Shell \& more
+
+The attacker now had several opportunities. In \verb|profile.php|, he could change
+the profile information for any user.
+
+\verb|designCheck.php| can be used to read
+any file on the system which is readable by the web server, or trick the server into
+accessing any desired web page. The information gained by reading logs, config files,
+and source files of the web application can help provide further attack vectors.
+For example, \verb|designCheck.php?sample=/var/www/backend.php| leads to \verb|includes/businessPage.inc.php|,
+which in turn provides the root mysql credentials.
+
+In \verb|backend.php| new articles can be added.
+These articles could contain malicious scripts which are executed by visitors' browsers.
+The external reference can link to any site. And finally, the any arbitrary file
+can be uploaded to the server. The attacker used the latter functionality to upload
+\verb|uploads/shell.php|, gaining a shell on the web server running under apache's credentials.
+
+As can be seen in \verb|/var/log/apache2/access.log|, the attacker used this to determine
+the system's uptime.
+
+Several articles were created through the admin web interface.
+
+Apache's \verb|error.log| also shows an attempted access to \verb|/etc/passwd|.
+
+\end{enumerate}
+
 \subsection{Further Exploit Scenarios}
+
+Besides defacing the web application, there are several further possible exploit scenarios:
+
+The attacker has full control of all files the apache user can access. For example,
+the entire web application could simply be deleted, or arbitrary new web sites could
+be uploaded and made accessible online.
+
+Since the database credentials were located in a readable php file, the attacker
+has complete access to the mysql database.
+
+As mentioned, most config files are available to the intruder; he could check these
+for opportunities for further attacks. For example, \verb|/etc/passwd| could
+be used to harvest available user names for ssh attacks. Maybe some user will
+even have the same password as the database root user?
+
+The server could be tricked into accessing any url through \verb|designCheck.php|.
+This could be used to incriminate the owner with illegal content.
+
+Session cookies are also world-readable and can be stolen.
+
+A logged in user could be exploited to change his account details or post new articles through
+cross site request forgery.
+
+Images posted in authentic articles could be overwritten and changed by any logged in user.
+
 \subsection{Categorization of Vulnerabilities}
+
+The following vulnerabilities are categorized according to the OWASP top 10 2013RC1.
+
+\begin{itemize}
+\item SQL injection: A1, A2
+\item Shell access through the weather form: A1
+\item Comment creation can be enabled by setting comments=1: A2
+\item Images can be overwritten by all logged in users: A2
+\item Scripts in articles and article comments: A3
+\item Access to files through \verb|designCheck.php|: A4
+\item Outdated versions of apache, mysql, php: A5
+\item Enabled ssh root login: A5
+\item Directory browsing is enabled in apache: A5
+\item Plain text passwords stored in database files: A6
+\item Access to \verb|designCheck.php| possible without login: A7
+\item No user separation in profile and article pages: A7
+\item Another site could exploit a user who is currently logged into this web application
+      through cross site request forgery. For example the user could be made to
+      change his profile without his knowledge or consent: A8
+\item PHP5 (and probably other components of the stack as well) has known security vulnerabilities,
+      even when updated to the latest repository version. See \url{http://www.cvedetails.com/vulnerability-list/vendor_id-74/product_id-128/version_id-125887/PHP-PHP-5.3.10.html}: A9
+\item \verb|redirect.php| does not validate the target: A10
+\end{itemize}
+
 \subsection{Securing the Application}
 
-\begin{comment}
-Setup: Bridged adapter, Boot from USB stick, mount disks read-only. Get IP by 'ip addr'.
+Note: meticulous error handling was not done in the course of this task to keep the work load
+manageable. A real-world application would need more work in this area.
 
-~/.bash_history
-/var/log/auth.log
+\begin{itemize}
+\item Stricter sshd configuration. Disallowing root logins and specifically
+      set allowed users makes ssh attacks more difficult.
 
-/root/.mysql_history
-/root/.bash_history
-.lesshst?
+\begin{verbatim}
+--- /etc/ssh/sshd_config        2013-03-04 21:06:21.137976288 +0100
++++ /etc/ssh/sshd_config.new    2013-04-11 18:16:56.079223014 +0200
+@@ -22,9 +22,11 @@
+ SyslogFacility AUTH
+ LogLevel INFO
+ 
++AllowUsers softwaresec
++
+ # Authentication:
+ LoginGraceTime 120
+-PermitRootLogin yes
++PermitRootLogin no
+ StrictModes yes
+ 
+ RSAAuthentication yes
+\end{verbatim}
 
-url/uploads/shell.php (password in /var/www/uploads/shell.php)
-url/login.php
+\item Update the system. Critical system components should always be up-to-date
+      to ensure we can benefit from the most recent security fixes.
 
-PermitRootLogin yes in sshd_config
-\end{comment}
+\begin{verbatim}
+$ sudo apt-get update
+$ sudo apt-get upgrade
+\end{verbatim}
 
+\item Set a decent password for the user softwaresec. Strong passwords are long,
+      consist of a combination of alphanumeric and punctuation symbols, and avoid
+      common words or variations thereof.
+
+\begin{verbatim}
+$ passwd
+\end{verbatim}
+
+\item Remove \verb|designCheck.php|. The functionality is inherently unsafe. We
+      remove the file from the physical filesystem and from all related files
+      in the web application.
+      
+\item Remove all traces of the attack. This includes all files in \verb|/var/www/uploads|
+      and the articles as well as the users added by the attacker. The safest way
+      to do this would be to restore the database and all application files from 
+      a known safe backup.
+      
+\item Secure the apache configuration. This is of course only a partial
+      configuration and much more could be done to set up apache securely. However,
+      this is a good start. We disable the server signature, disallow access to directories
+      outside of \verb|/var/www|, and disable directory listings.
+
+\begin{verbatim}
+--- /etc/apache2/sites-enabled/000-default.old  2013-04-11 19:49:41.467016818 +0200
++++ /etc/apache2/sites-enabled/000-default      2013-04-11 19:52:31.183009546 +0200
+@@ -1,13 +1,18 @@
++ServerSignature Off
++ServerTokens Prod
++
+ <VirtualHost *:80>
+        ServerAdmin webmaster@localhost
+ 
+        DocumentRoot /var/www
+        <Directory />
+-               Options FollowSymLinks
++               Order Deny,Allow
++               Deny from all
++               Options none
+                AllowOverride None
+        </Directory>
+        <Directory /var/www/>
+-               Options Indexes FollowSymLinks MultiViews
++               Options FollowSymLinks MultiViews
+                AllowOverride None
+                Order allow,deny
+                allow from all
+
+\end{verbatim}
+
+\item Ensure all user interactions with the database are done through prepared statements.
+      This was actually quite a lot of work, since every mysql query had to be adapted. The new usage
+      pattern is always similar to the following snippet (full diffs are also available separately).
+      
+\lstset{language=php}
+\begin{lstlisting}
+        $mysqli = databaseConnect();         
+        $stmt = $mysqli->prepare("INSERT INTO comments (comment,user,articleid) VALUES (?, ?, ?);");
+        $stmt->bind_param("ssi", $message, $name, $id);
+        $stmt->execute();
+        $stmt->close();
+        $mysqli->close();
+\end{lstlisting}
+
+\item Do not display database error messages on the web application. These can help an attacker
+      to gain access. All such error displays have been removed from the application.
+
+\item Prevent changing another user's profile by grabbing the currently logged in user from
+      the business session instead of the id parameter. New profile creation has been disabled as well (these can be added directly to the database).
+      As always, details are available in the full diff files.
+
+\item Restrict file uploads to images of type jpg, jpeg, gif, and png. File sizes are already
+      restricted.
+      
+\item Prevent overwriting other uploads by choosing a unique name for the uploaded file.
+
+\item Prevent the built-in shell access through the weather query by moving the user input
+      out of the \lstinline|shell_exec()| call.
+
+\item Prevent XSS in comments and similar fields by wrapping all of these inputs with \lstinline|htmlspecialchars|.
+
+\item Separate database users for each web application. Currently, there is only a single application,
+      but in the future there might be new additions. We created a new mysql user, granted the appropriate
+      rights to all tables, and changed the credentials hardcoded in the php files.
+      
+\begin{verbatim}
+mysql> create user 'bws'@'localhost' identified by 'Y_pwQZF2367w';
+mysql> grant all privileges on business.* to 'bws'@'localhost';
+\end{verbatim}
+
+\item Encrypt user passwords in the database using \verb|phpass|. These hashes are salted to
+      prevent rainbow table attacks. The column \verb|password| in the \verb|users| table
+      had to be modified to \verb|varchar(128)| in order to have enough capacity for
+      the complete hash. Further details are in the diff files.
+      
+\item Hide password as the user is entering it by using the input type ``password''.
+
+\item Prevent cross-site request forgeries by creating a session token and validating
+      user input against it. All invalid requests are aborted. % TODO: Protection of our areas enough? Comments? Logout?
+
+\item Disable redirects to unverified sites. Redirects targets are verified to point
+      to a trusted location, and ignored otherwise. This removes functionality such as redirecting
+      to a specific page after login which would need to be reimplemented using secure
+      mechanisms.
+
+\item Prevent setting article authors to another user by always defaulting to the logged
+      in user.
+
+\end{itemize}
 
 \end{document}
