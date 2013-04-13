@@ -1,0 +1,32 @@
+From 7530bf78f3ef8649fb42f21e7f8f4bb629cde0f1 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 22:18:03 +0200
+Subject: [PATCH 10/23] Prevent new account creation through profile.php
+
+---
+ profile.php |    7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/profile.php b/profile.php
+index 0dbb1e8..0205273 100644
+--- a/profile.php
++++ b/profile.php
+@@ -18,13 +18,10 @@ if (isset($_POST['btnSubmit'])) {
+ 	if($num_results > 0) {
+ 		$stmt = $mysqli->prepare("UPDATE users SET first_name=?, last_name=?, user=?, password=? WHERE user_id = ?");
+ 		$stmt->bind_param("ssssi", $_POST['txtFirst'], $_POST['txtLast'], $_POST['txtUser'], $_POST['txtPass'], $_GET['id']);
+-	} else {
+-		$stmt = $mysqli->prepare("INSERT INTO users (first_name,last_name,user,password) VALUES (?, ?, ?, ?);");
+-		$stmt->bind_param("ssss", $_POST['txtFirst'], $_POST['txtLast'], $_POST['txtUser'], $_POST['txtPass']);
++		$stmt->execute();
++		$stmt->close();
+ 	}
+ 
+-	$stmt->execute();
+-	$stmt->close();
+ 	$mysqli->close();
+ }
+ 
+-- 
+1.7.9.5
+

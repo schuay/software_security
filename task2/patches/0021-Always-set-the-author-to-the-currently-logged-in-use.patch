@@ -1,0 +1,43 @@
+From aa7fdc52cd095ea5f85f167a1422c544c6e30560 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Fri, 12 Apr 2013 01:37:20 +0200
+Subject: [PATCH 21/23] Always set the author to the currently logged in user
+
+---
+ backend.php |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/backend.php b/backend.php
+index 931f8d4..7af1d0e 100644
+--- a/backend.php
++++ b/backend.php
+@@ -6,6 +6,9 @@ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ 
+ startup( array( 'authenticated', 'redirect'=>'backend.php' ) );
+ 
++$businessSession =& sessionGrab();
++$id = $businessSession['id'];
++
+ if (isset($_POST['btnSubmit'])) {
+ 	if ($_POST['csrf'] != $_SESSION['token']) {
+ 		die("CSRF");
+@@ -43,7 +46,7 @@ if (isset($_POST['btnSubmit'])) {
+ 	if(isset($_POST['txtRef']))
+ 		$content.="<br /><a href=\"redirect.php?url=". htmlspecialchars($_POST['txtRef']) ."\">External Reference </a>";
+ 	$title=htmlspecialchars($_POST['txtTitle']);
+-	$name=htmlspecialchars($_POST['user']);
++	$name=htmlspecialchars($id);
+ 	$published=gmdate("Y-m-d H:i:s");
+ 
+ 	$mysqli = databaseConnect();
+@@ -71,7 +74,6 @@ $page[ 'body' ] .= "Welcome to the Management Backend!<br />
+ 			<br /><input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"512000\" />
+ 			<input name=\"uploaded\" type=\"file\" /><br />
+                         External Reference *<br /><input name=\"txtRef\" type=\"text\" size=\"30\" maxlength=\"60\"><br/>";
+-$page[ 'body' ] .=getAuthors();
+ $page[ 'body' ] .="<input name=\"csrf\" type=\"hidden\" value=\"" . $_SESSION['token'] . "\">";
+ $page[ 'body' ] .="<br/><input name=\"btnSubmit\" type=\"submit\" value=\"Submit\"><br/>
+     </form>
+-- 
+1.7.9.5
+

@@ -1,0 +1,74 @@
+From 01c23fc20c41fa857afed7d2a389b353455c75dd Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Fri, 12 Apr 2013 01:10:19 +0200
+Subject: [PATCH 20/23] Prevent CSRF attacks in critical areas
+
+---
+ backend.php                   |    6 +++++-
+ includes/businessPage.inc.php |    1 +
+ profile.php                   |    5 +++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/backend.php b/backend.php
+index de5fcc8..931f8d4 100644
+--- a/backend.php
++++ b/backend.php
+@@ -7,6 +7,10 @@ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ startup( array( 'authenticated', 'redirect'=>'backend.php' ) );
+ 
+ if (isset($_POST['btnSubmit'])) {
++	if ($_POST['csrf'] != $_SESSION['token']) {
++		die("CSRF");
++	}
++
+ 	$content = $_POST['mtxContent'];
+ 
+ 	$allowedExts = array("jpg", "jpeg", "gif", "png");
+@@ -68,8 +72,8 @@ $page[ 'body' ] .= "Welcome to the Management Backend!<br />
+ 			<input name=\"uploaded\" type=\"file\" /><br />
+                         External Reference *<br /><input name=\"txtRef\" type=\"text\" size=\"30\" maxlength=\"60\"><br/>";
+ $page[ 'body' ] .=getAuthors();
++$page[ 'body' ] .="<input name=\"csrf\" type=\"hidden\" value=\"" . $_SESSION['token'] . "\">";
+ $page[ 'body' ] .="<br/><input name=\"btnSubmit\" type=\"submit\" value=\"Submit\"><br/>
+-    
+     </form>
+ ";
+ 
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index 110b9af..05b7957 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -67,6 +67,7 @@ function login( $pUsername ) {
+ 
+ 	$businessSession['id'] = $id;
+ 	$businessSession['username'] = $pUsername;
++	$_SESSION['token'] = md5(uniqid(mt_rand(), true));
+ 	$_SESSION['business'] = $businessSession;
+ }
+ 
+diff --git a/profile.php b/profile.php
+index beca93c..9897928 100644
+--- a/profile.php
++++ b/profile.php
+@@ -13,6 +13,10 @@ $id = $businessSession['id'];
+ $hasher = new PasswordHash(8, false);
+         
+ if (isset($_POST['btnSubmit'])) {
++	if ($_POST['csrf'] != $_SESSION['token']) {
++		die("CSRF");
++	}
++	
+ 	$mysqli = databaseConnect();
+ 	$stmt = $mysqli->prepare("SELECT first_name, last_name, user, password FROM users WHERE user_id =?");
+ 	$stmt->bind_param("i", $id);
+@@ -62,6 +66,7 @@ $page[ 'body' ] .= "This is your user Profile<br />
+     Username *<br /><input name=\"txtUser\" type=\"text\" size=\"30\" maxlength=\"15\" value=\"". $u . "\"><br/>
+     Password *<br /><input name=\"txtPass\" type=\"password\" size=\"30\" maxlength=\"32\" value=\"\"><br/>
+     <input name=\"btnSubmit\" type=\"submit\" value=\"Submit\"><br/>
++    <input name=\"csrf\" type=\"hidden\" value=\"" . $_SESSION['token'] . "\">
+     
+     </form>
+ ";
+-- 
+1.7.9.5
+

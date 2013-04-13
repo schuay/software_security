@@ -1,0 +1,42 @@
+From 6715a00473403634c16e85c5ab65d10da7baa91f Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 21:34:24 +0200
+Subject: [PATCH 07/23] Continue porting backend.php
+
+---
+ backend.php |   12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/backend.php b/backend.php
+index 20c46fd..7aca909 100644
+--- a/backend.php
++++ b/backend.php
+@@ -28,18 +28,20 @@ if (isset($_POST['btnSubmit'])) {
+ 	$title=$_POST['txtTitle'];
+ 	$name=$_POST['user'];
+ 	$published=gmdate("Y-m-d H:i:s");
+-	databaseConnect();
+-	$query = "INSERT INTO article (headline,content,created,published) VALUES ('$title','$content','$published','$name');";
+-	mysql_query($query) or die('<pre>' . mysql_error() . '</pre>' );
+ 
++	$mysqli = databaseConnect();
++	$stmt = $mysqli->prepare("INSERT INTO article (headline,content,created,published) VALUES (?, ?, ?, ?);");
++	$stmt->bind_param("sssi", $title, $content, $published, $name);
++	$stmt->execute();
++
++	$stmt->close();
++	$mysqli->close();
+ }
+ 
+ $page = grabNewPage();
+ 
+ $page[ 'title' ] .= $page[ 'title_separator' ].'Welcome';
+-
+ $page[ 'page_id' ] = 'home';
+-
+ $page[ 'body' ] .= "Welcome to the Management Backend!<br />
+     You can add an article below:<br />
+     
+-- 
+1.7.9.5
+

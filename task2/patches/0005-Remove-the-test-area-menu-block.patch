@@ -1,0 +1,55 @@
+From 9e49ebccf02bbd4c141db7cb6a4e8b977795770e Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 21:21:53 +0200
+Subject: [PATCH 05/23] Remove the test area menu block
+
+---
+ designCheck.php               |   23 -----------------------
+ includes/businessPage.inc.php |    1 -
+ 2 files changed, 24 deletions(-)
+ delete mode 100644 designCheck.php
+
+diff --git a/designCheck.php b/designCheck.php
+deleted file mode 100644
+index 941a49c..0000000
+--- a/designCheck.php
++++ /dev/null
+@@ -1,23 +0,0 @@
+-<?php
+-
+-define( 'WEB_PAGE_TO_ROOT', '' );
+-
+-require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+-
+-$page = grabNewPage();
+-
+-$page[ 'title' ] .= $page[ 'title_separator' ].'Welcome';
+-
+-$page[ 'page_id' ] = 'home';
+-
+-$file='readme.txt';
+-
+-if(isset($_GET['sample']))
+-    $file = $_GET['sample'];
+-
+-$page[ 'body' ] .= readfile($file);
+-
+-
+-htmlEcho( $page );
+-
+-?>
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index 2e136f5..6bb0527 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -161,7 +161,6 @@ function htmlEcho( $pPage ) {
+             $session= sessionGrab();
+             $menuBlocks['vulnerabilities'][] = array( 'id' => 'profile', 'name' => 'Profile', 'url' => 'profile.php?id='. $session['id'] );
+             $menuBlocks['vulnerabilities'][] = array( 'id' => 'backend', 'name' => 'Add new Article', 'url' => 'backend.php' );
+-            $menuBlocks['vulnerabilities'][] = array( 'id' => 'test', 'name' => 'Testarea', 'url' => 'designCheck.php' );
+             $menuBlocks['logout'] = array();
+             $menuBlocks['logout'][] = array( 'id' => 'logout', 'name' => 'Logout', 'url' => 'logout.php' );
+         }
+-- 
+1.7.9.5
+

@@ -1,0 +1,64 @@
+From 18582b50e5b017a6834e820c874071d9ab554839 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Fri, 12 Apr 2013 01:07:35 +0200
+Subject: [PATCH 19/23] Do not try to handle uploaded files if none were
+ selected
+
+---
+ backend.php |   38 ++++++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 18 deletions(-)
+
+diff --git a/backend.php b/backend.php
+index c7a0a56..de5fcc8 100644
+--- a/backend.php
++++ b/backend.php
+@@ -12,26 +12,28 @@ if (isset($_POST['btnSubmit'])) {
+ 	$allowedExts = array("jpg", "jpeg", "gif", "png");
+ 	$extension = strtolower(end(explode(".", $_FILES["uploaded"]["name"])));
+ 
+-	if (($_FILES["uploaded"]["type"] == "image/gif" or
+-            $_FILES["uploaded"]["type"] == "image/jpg" or
+-            $_FILES["uploaded"]["type"] == "image/jpeg" or
+-            $_FILES["uploaded"]["type"] == "image/png" or
+-            $_FILES["uploaded"]["size"] < 2500000) and
+-            in_array($extension, $allowedExts)) {
+-		if ($_FILES["uploaded"]["error"] > 0) {
+-			echo '<pre>Your image was not uploaded.</pre>';
+-		} else {
+-			$fname = $_FILES["uploaded"]["name"];
+-			$target_path = WEB_PAGE_TO_ROOT . "uploads/" . uniqid() . $fname;
+-			move_uploaded_file($_FILES["uploaded"]["tmp_name"], $target_path);
++	if (!empty($_FILES["uploaded"]["name"])) {
++		if (($_FILES["uploaded"]["type"] == "image/gif" or
++		    $_FILES["uploaded"]["type"] == "image/jpg" or
++		    $_FILES["uploaded"]["type"] == "image/jpeg" or
++		    $_FILES["uploaded"]["type"] == "image/png" or
++		    $_FILES["uploaded"]["size"] < 2500000) and
++		    in_array($extension, $allowedExts)) {
++			if ($_FILES["uploaded"]["error"] > 0) {
++				echo '<pre>Your image was not uploaded.</pre>';
++			} else {
++				$fname = $_FILES["uploaded"]["name"];
++				$target_path = WEB_PAGE_TO_ROOT . "uploads/" . uniqid() . $fname;
++				move_uploaded_file($_FILES["uploaded"]["tmp_name"], $target_path);
+ 
+-			$content.="<br /><img heigth=250 width=250 src=\"". $target_path ."\"> ";
+-			$html .= '<pre>';
+-			$html .= $target_path . ' successfully uploaded!';
+-			$html .= '</pre>';
++				$content.="<br /><img heigth=250 width=250 src=\"". $target_path ."\"> ";
++				$html .= '<pre>';
++				$html .= $target_path . ' successfully uploaded!';
++				$html .= '</pre>';
++			}
++		} else {
++			echo '<pre>aYour image was not uploaded. Only jpg, jpeg, gif, and png files are allowed.</pre>';
+ 		}
+-	} else {
+-		echo '<pre>aYour image was not uploaded. Only jpg, jpeg, gif, and png files are allowed.</pre>';
+ 	}
+ 
+ 	if(isset($_POST['txtRef']))
+-- 
+1.7.9.5
+

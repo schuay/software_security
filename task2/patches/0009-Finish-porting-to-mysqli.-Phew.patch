@@ -1,0 +1,102 @@
+From d5e314186dadcf0d2c2cae55be86ca0f9b72fdd3 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 22:08:47 +0200
+Subject: [PATCH 09/23] Finish porting to mysqli. Phew!
+
+---
+ includes/businessPage.inc.php |   57 ++++++++++++++++++++++++-----------------
+ 1 file changed, 34 insertions(+), 23 deletions(-)
+
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index 65673fd..59112d1 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -279,30 +279,37 @@ function fetchArticles() {
+ }
+ 
+ function fetchArticle($id, $commentson){
+-	databaseConnect();
+-	$result = mysql_fetch_row(mysql_query("SELECT id, headline, content, created, published FROM article where id=".$id));
+-
+-	$curauth = mysql_fetch_row(mysql_query("SELECT first_name, last_name FROM users WHERE user_id =".$result[4]));
+-
+-	$comments = mysql_query("SELECT user, comment FROM comments WHERE articleid =".$id);
+-	$num_comments = mysql_num_rows($comments);
++	$mysqli = databaseConnect();
++	$stmt = $mysqli->prepare("SELECT a.headline, a.created, a.published, a.content, a.id, b.first_name, b.last_name FROM article a INNER JOIN users b ON a.published = b.user_id WHERE a.id = ?");
++	$stmt->bind_param("i", $id);
++	$stmt->execute();
++	$stmt->bind_result($headline, $created, $published, $content, $id, $first_name, $last_name);
++	$stmt->fetch();
++	$stmt->close();
+ 
+-	//    $article = '<div id="body" class="header">';
+-	$article= "<h3>$result[1]<br />$result[3]</h3><br />$result[2]<br />$curauth[1]";
+-	//    $article.= '</div><div>';
++	$article= "<h3>$headline<br />$created</h3><br />$content<br />$last_name";
+ 
+ 	if($commentson == 1)
+ 		$article.= "<p>Leave a comment below:</p>";
+ 
+-	if($num_comments > 0) {
+-		while($row = mysql_fetch_row($comments)){
+-			$article.="<p>$row[0]<br />$row[1]</p>";
+-		}
+-	} else {
++	$stmt = $mysqli->prepare("SELECT user, comment FROM comments WHERE articleid = ?");
++	$stmt->bind_param("i", $id);
++	$stmt->execute();
++	$stmt->bind_result($user, $comment);
++	$stmt->store_result();
++	$num_comments = $stmt->num_rows;
++
++	while ($stmt->fetch()) {
++		$article.="<p>$user<br />$comment</p>";
++	}
++
++	$stmt->close();
++	$mysqli->close();
++
++	if($num_comments == 0) {
+ 		$article.="<p>There are no comments yet!</p>";
+ 	}
+ 
+-	//   $article.='</div></br>';
+ 	if($commentson == 1)
+ 		$article.="        
+ <div class=\"featured\">
+@@ -318,20 +325,24 @@ function fetchArticle($id, $commentson){
+ }
+ 
+ function postComment($message, $name, $id) {
+-	databaseConnect();
+-	$query = "INSERT INTO comments (comment,user,articleid) VALUES ('$message','$name','$id');";
+-	mysql_query($query);
++	$mysqli = databaseConnect();
++	$stmt = $mysqli->prepare("INSERT INTO comments (comment,user,articleid) VALUES (?, ?, ?);");
++	$stmt->bind_param("ssi", $message, $name, $id);
++	$stmt->execute();
++	$stmt->close();
++	$mysqli->close();
+ }
+ 
+ function getAuthors() {
+-	databaseConnect();
+-	$result = mysql_query("SELECT user_id, user FROM users;");
+-
+ 	$users = "<select name='user'>";
+ 
+-	while($row = mysql_fetch_row($result)){
++	$mysqli = databaseConnect();
++	$result = $mysqli->query("SELECT user_id, user FROM users;");
++	while($row = $result->fetch_array(MYSQLI_NUM)) {
+ 		$users .= "<option value='" . $row[0] . "'>" . $row[1] . "</option>";
+ 	}
++	$result->close();
++	$mysqli->close();
+ 
+ 	$users .= '</select>';
+ 	return $users;
+-- 
+1.7.9.5
+

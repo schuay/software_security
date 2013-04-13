@@ -1,0 +1,350 @@
+From b5573bdc0ca32f430863672e70923c07bf8b45f6 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 21:27:40 +0200
+Subject: [PATCH 06/23] Autoformat backend.php and businessPage.inc.php
+
+Was this originally written by a monkeys with typewriters?
+---
+ backend.php                   |   54 ++++++------
+ includes/businessPage.inc.php |  192 ++++++++++++++++++++---------------------
+ 2 files changed, 123 insertions(+), 123 deletions(-)
+
+diff --git a/backend.php b/backend.php
+index 2602e62..20c46fd 100644
+--- a/backend.php
++++ b/backend.php
+@@ -5,34 +5,34 @@ define( 'WEB_PAGE_TO_ROOT', '' );
+ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ 
+ startup( array( 'authenticated', 'redirect'=>'backend.php' ) );
+-        
+-	if (isset($_POST['btnSubmit'])) {
+-                        $content = $_POST['mtxContent'];
+-			$target_path = WEB_PAGE_TO_ROOT."uploads/";
+-			$target_path .= basename( $_FILES['uploaded']['name']);
+-			if(!move_uploaded_file($_FILES['uploaded']['tmp_name'], $target_path)) {
+-				
+-				$html .= '<pre>';
+-				$html .= 'Your image was not uploaded.';
+-				$html .= '</pre>';
+-				
+-      		} else {
+-                                $content.="<br /><img heigth=250 width=250 src=\"". $target_path ."\"> ";
+-				$html .= '<pre>';
+-				$html .= $target_path . ' succesfully uploaded!';
+-				$html .= '</pre>';
+-				
+-			}
+-                  if(isset($_POST['txtRef']))
+-                      $content.="<br /><a href=\"redirect.php?url=". $_POST['txtRef'] ."\">External Reference </a>";
+-                  $title=$_POST['txtTitle'];
+-                  $name=$_POST['user'];
+-                  $published=gmdate("Y-m-d H:i:s");
+-                databaseConnect();
+-                $query = "INSERT INTO article (headline,content,created,published) VALUES ('$title','$content','$published','$name');";
+-                mysql_query($query) or die('<pre>' . mysql_error() . '</pre>' );
+ 
+-		}
++if (isset($_POST['btnSubmit'])) {
++	$content = $_POST['mtxContent'];
++	$target_path = WEB_PAGE_TO_ROOT."uploads/";
++	$target_path .= basename( $_FILES['uploaded']['name']);
++	if(!move_uploaded_file($_FILES['uploaded']['tmp_name'], $target_path)) {
++
++		$html .= '<pre>';
++		$html .= 'Your image was not uploaded.';
++		$html .= '</pre>';
++
++	} else {
++		$content.="<br /><img heigth=250 width=250 src=\"". $target_path ."\"> ";
++		$html .= '<pre>';
++		$html .= $target_path . ' succesfully uploaded!';
++		$html .= '</pre>';
++
++	}
++	if(isset($_POST['txtRef']))
++		$content.="<br /><a href=\"redirect.php?url=". $_POST['txtRef'] ."\">External Reference </a>";
++	$title=$_POST['txtTitle'];
++	$name=$_POST['user'];
++	$published=gmdate("Y-m-d H:i:s");
++	databaseConnect();
++	$query = "INSERT INTO article (headline,content,created,published) VALUES ('$title','$content','$published','$name');";
++	mysql_query($query) or die('<pre>' . mysql_error() . '</pre>' );
++
++}
+ 
+ $page = grabNewPage();
+ 
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index 6bb0527..2284b8b 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -42,11 +42,11 @@ function startup( $pActions ) {
+ 
+ 	if( in_array( 'authenticated', $pActions ) ) {
+ 		if( !isLoggedIn()){
+-                        if(array_key_exists( 'redirect', $pActions )) {
+-                            redirect( WEB_PAGE_TO_ROOT.'login.php?redirect='.$pActions['redirect'] );
+-                        } else {
+-                            redirect( WEB_PAGE_TO_ROOT.'login.php');
+-                        }
++			if(array_key_exists( 'redirect', $pActions )) {
++				redirect( WEB_PAGE_TO_ROOT.'login.php?redirect='.$pActions['redirect'] );
++			} else {
++				redirect( WEB_PAGE_TO_ROOT.'login.php');
++			}
+ 
+ 		}
+ 	}
+@@ -56,13 +56,13 @@ function startup( $pActions ) {
+ function login( $pUsername ) {
+ 
+ 	$businessSession =& sessionGrab();
+-        
+-        databaseConnect();
+-        $result = mysql_fetch_row(mysql_query("SELECT user_id FROM users where user='".$pUsername."'"));
+-        
+-        $businessSession['id'] = $result[0];
++
++	databaseConnect();
++	$result = mysql_fetch_row(mysql_query("SELECT user_id FROM users where user='".$pUsername."'"));
++
++	$businessSession['id'] = $result[0];
+ 	$businessSession['username'] = $pUsername;
+-        $_SESSION['business'] = $businessSession;
++	$_SESSION['business'] = $businessSession;
+ }
+ 
+ 
+@@ -80,8 +80,8 @@ function logout() {
+ 	$businessSession =& sessionGrab();
+ 
+ 	unset( $businessSession['username'] );
+-        unset( $businessSession['id'] );
+-        session_destroy();
++	unset( $businessSession['id'] );
++	session_destroy();
+ 
+ }
+ 
+@@ -97,13 +97,13 @@ function pageReload() {
+ function &grabNewPage() {
+ 
+ 	$returnArray = array(
+-		'title' => 'Super secure and highly userfriendly web App',
+-		'title_separator' => ' :: ',
+-		'body' => '',
+-		'page_id' => '',
+-		'help_button' => '',
+-		'source_button' => '',
+-	);
++			'title' => 'Super secure and highly userfriendly web App',
++			'title_separator' => ' :: ',
++			'body' => '',
++			'page_id' => '',
++			'help_button' => '',
++			'source_button' => '',
++			);
+ 
+ 	return $returnArray;
+ }
+@@ -156,14 +156,14 @@ function htmlEcho( $pPage ) {
+ 
+ 	$menuBlocks = array();
+ 
+-        if(isLoggedIn()){
+-            $menuBlocks['vulnerabilities'] = array();
+-            $session= sessionGrab();
+-            $menuBlocks['vulnerabilities'][] = array( 'id' => 'profile', 'name' => 'Profile', 'url' => 'profile.php?id='. $session['id'] );
+-            $menuBlocks['vulnerabilities'][] = array( 'id' => 'backend', 'name' => 'Add new Article', 'url' => 'backend.php' );
+-            $menuBlocks['logout'] = array();
+-            $menuBlocks['logout'][] = array( 'id' => 'logout', 'name' => 'Logout', 'url' => 'logout.php' );
+-        }
++	if(isLoggedIn()){
++		$menuBlocks['vulnerabilities'] = array();
++		$session= sessionGrab();
++		$menuBlocks['vulnerabilities'][] = array( 'id' => 'profile', 'name' => 'Profile', 'url' => 'profile.php?id='. $session['id'] );
++		$menuBlocks['vulnerabilities'][] = array( 'id' => 'backend', 'name' => 'Add new Article', 'url' => 'backend.php' );
++		$menuBlocks['logout'] = array();
++		$menuBlocks['logout'][] = array( 'id' => 'logout', 'name' => 'Logout', 'url' => 'logout.php' );
++	}
+ 
+ 	$menuHtml = '<ul>';
+ 
+@@ -183,14 +183,14 @@ function htmlEcho( $pPage ) {
+ 
+ 		$menuHtml .= "{$menuBlockHtml}";
+ 	}
+-        
+-        $menuHtml .= '</ul>';
+-        $city = 'Vienna';
+-        if(isset($_POST['btnSubmit']))
+-            $city=$_POST['txtCity'];
+-        $menuHtml.="Get weather for your city:";
+-        
+-        $menuHtml.="
++
++	$menuHtml .= '</ul>';
++	$city = 'Vienna';
++	if(isset($_POST['btnSubmit']))
++		$city=$_POST['txtCity'];
++	$menuHtml.="Get weather for your city:";
++
++	$menuHtml.="
+     
+     <form enctype=\"multipart/form-data\" method=\"post\" name=\"userupdate\" onsubmit=\"return validate_form(this)\">
+     
+@@ -248,13 +248,13 @@ function htmlEcho( $pPage ) {
+ 
+ 
+ 
+- $DBMS_errorFunc = 'mysql_error()';
++$DBMS_errorFunc = 'mysql_error()';
+ 
+ $DBMS_connError = '<div align="center">
+-		<img src="'.WEB_PAGE_TO_ROOT.'images/logo.png">
+-		<pre>Unable to connect to the database.<br>'.$DBMS_errorFunc.'<br /><br /></pre>
+-		Click <a href="'.WEB_PAGE_TO_ROOT.'setup.php">here</a> to setup the database.
+-		</div>';
++<img src="'.WEB_PAGE_TO_ROOT.'images/logo.png">
++<pre>Unable to connect to the database.<br>'.$DBMS_errorFunc.'<br /><br /></pre>
++Click <a href="'.WEB_PAGE_TO_ROOT.'setup.php">here</a> to setup the database.
++</div>';
+ 
+ function databaseConnect() {
+ 	global $_BUSINESS;
+@@ -279,49 +279,49 @@ function redirect( $pLocation ) {
+ 
+ 
+ function fetchArticles() {
+-    databaseConnect();
+-    $result = mysql_query("SELECT headline, created, published, id FROM article");
+-    
+-    $articles = '<lu>';
+-    
+-    while($row = mysql_fetch_row($result)){
+-        
+-        $curauth = mysql_query("SELECT first_name, last_name FROM users WHERE user_id =".$row[2]);
+-        $name = mysql_fetch_row($curauth);
+-        $articles .= "<li><h3>$row[1]<br /><a href=\"showArticle.php?id=$row[3]&comments=0\">$row[0]</a></h3><p>$name[0] $name[1]</p></li>";
+-    }
+-    
+-    $articles .= '</lu>';
+-    return $articles;
++	databaseConnect();
++	$result = mysql_query("SELECT headline, created, published, id FROM article");
++
++	$articles = '<lu>';
++
++	while($row = mysql_fetch_row($result)){
++
++		$curauth = mysql_query("SELECT first_name, last_name FROM users WHERE user_id =".$row[2]);
++		$name = mysql_fetch_row($curauth);
++		$articles .= "<li><h3>$row[1]<br /><a href=\"showArticle.php?id=$row[3]&comments=0\">$row[0]</a></h3><p>$name[0] $name[1]</p></li>";
++	}
++
++	$articles .= '</lu>';
++	return $articles;
+ }
+ 
+ function fetchArticle($id, $commentson){
+-    databaseConnect();
+-    $result = mysql_fetch_row(mysql_query("SELECT id, headline, content, created, published FROM article where id=".$id));
+-    
+-    $curauth = mysql_fetch_row(mysql_query("SELECT first_name, last_name FROM users WHERE user_id =".$result[4]));
+-    
+-    $comments = mysql_query("SELECT user, comment FROM comments WHERE articleid =".$id);
+-    $num_comments = mysql_num_rows($comments);
+-     
+-//    $article = '<div id="body" class="header">';
+-    $article= "<h3>$result[1]<br />$result[3]</h3><br />$result[2]<br />$curauth[1]";
+-//    $article.= '</div><div>';
+-    
+-    if($commentson == 1)
+-        $article.= "<p>Leave a comment below:</p>";
+-    
+-    if($num_comments > 0) {
+-        while($row = mysql_fetch_row($comments)){
+-            $article.="<p>$row[0]<br />$row[1]</p>";
+-        }
+-    } else {
+-        $article.="<p>There are no comments yet!</p>";
+-    }
+-    
+- //   $article.='</div></br>';
+-    if($commentson == 1)
+-    $article.="        
++	databaseConnect();
++	$result = mysql_fetch_row(mysql_query("SELECT id, headline, content, created, published FROM article where id=".$id));
++
++	$curauth = mysql_fetch_row(mysql_query("SELECT first_name, last_name FROM users WHERE user_id =".$result[4]));
++
++	$comments = mysql_query("SELECT user, comment FROM comments WHERE articleid =".$id);
++	$num_comments = mysql_num_rows($comments);
++
++	//    $article = '<div id="body" class="header">';
++	$article= "<h3>$result[1]<br />$result[3]</h3><br />$result[2]<br />$curauth[1]";
++	//    $article.= '</div><div>';
++
++	if($commentson == 1)
++		$article.= "<p>Leave a comment below:</p>";
++
++	if($num_comments > 0) {
++		while($row = mysql_fetch_row($comments)){
++			$article.="<p>$row[0]<br />$row[1]</p>";
++		}
++	} else {
++		$article.="<p>There are no comments yet!</p>";
++	}
++
++	//   $article.='</div></br>';
++	if($commentson == 1)
++		$article.="        
+ <div class=\"featured\">
+ 		<form method=\"post\" name=\"guestform\">
+ 		Name *<input name=\"txtName\" type=\"text\" size=\"30\" maxlength=\"10\">
+@@ -331,26 +331,26 @@ function fetchArticle($id, $commentson){
+ 		</form>
+     ";
+     
+-    return $article;
++	return $article;
+ }
+ 
+ function postComment($message, $name, $id) {
+-    databaseConnect();
+-    $query = "INSERT INTO comments (comment,user,articleid) VALUES ('$message','$name','$id');";
+-   mysql_query($query);
++	databaseConnect();
++	$query = "INSERT INTO comments (comment,user,articleid) VALUES ('$message','$name','$id');";
++	mysql_query($query);
+ }
+ 
+ function getAuthors() {
+-    databaseConnect();
+-    $result = mysql_query("SELECT user_id, user FROM users;");
+-    
+-    $users = "<select name='user'>";
+-    
+-    while($row = mysql_fetch_row($result)){
+-        $users .= "<option value='" . $row[0] . "'>" . $row[1] . "</option>";
+-    }
+-    
+-    $users .= '</select>';
+-    return $users;
++	databaseConnect();
++	$result = mysql_query("SELECT user_id, user FROM users;");
++
++	$users = "<select name='user'>";
++
++	while($row = mysql_fetch_row($result)){
++		$users .= "<option value='" . $row[0] . "'>" . $row[1] . "</option>";
++	}
++
++	$users .= '</select>';
++	return $users;
+ }
+ ?>
+-- 
+1.7.9.5
+

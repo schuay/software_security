@@ -1,0 +1,109 @@
+From 25daa0de5e8f6b9b9754d3d16429382536601271 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 21:19:23 +0200
+Subject: [PATCH 04/23] Further mysqli porting
+
+---
+ login.php   |    3 +++
+ profile.php |   59 ++++++++++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 39 insertions(+), 23 deletions(-)
+
+diff --git a/login.php b/login.php
+index 8af034f..e11fee0 100644
+--- a/login.php
++++ b/login.php
+@@ -30,6 +30,9 @@ if( isset( $_POST[ 'Login' ] ) ) {
+ 		messagePush( "Login failed" );
+ 		redirect( 'login.php' );
+ 	}
++
++	$stmt->close();
++	$mysqli->close();
+ }
+ 
+ $messagesHtml = messagesPopAllToHtml();
+diff --git a/profile.php b/profile.php
+index 40d65b3..0dbb1e8 100644
+--- a/profile.php
++++ b/profile.php
+@@ -6,41 +6,54 @@ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ 
+ startup( array( 'authenticated', 'redirect'=>'profile.php' ) );
+         
+-	if (isset($_POST['btnSubmit'])) {
+-                
+-                databaseConnect();
+-                
+-                $res=mysql_query("SELECT first_name, last_name, user, password FROM users WHERE user_id =".$_GET['id']);
+-                $num_results = mysql_num_rows($res); 
+-                if($num_results > 0) {
+-                    $query = "UPDATE users SET first_name='" . $_POST['txtFirst'] . "', last_name='" . $_POST['txtLast'] . "', user='" . $_POST['txtUser'] . "', password='" . $_POST['txtPass'] . "' WHERE user_id = ".$_GET['id'];
+-                } else {
+-                    $query = "INSERT INTO users (first_name,last_name,user,password) VALUES ('".$_POST['txtFirst']."','".$_POST['txtLast']."','".$_POST['txtUser']."','".$_POST['txtPass']."');";
+-                }
+-                mysql_query($query) or die('<pre>' . mysql_error() . '</pre>' );
+-
+-		}
++if (isset($_POST['btnSubmit'])) {
++	$mysqli = databaseConnect();
++	$stmt = $mysqli->prepare("SELECT first_name, last_name, user, password FROM users WHERE user_id =?");
++	$stmt->bind_param("i", $_GET['id']);
++	$stmt->execute();
++	$stmt->store_result();
++	$num_results = $stmt->num_rows;
++	$stmt->close();
++
++	if($num_results > 0) {
++		$stmt = $mysqli->prepare("UPDATE users SET first_name=?, last_name=?, user=?, password=? WHERE user_id = ?");
++		$stmt->bind_param("ssssi", $_POST['txtFirst'], $_POST['txtLast'], $_POST['txtUser'], $_POST['txtPass'], $_GET['id']);
++	} else {
++		$stmt = $mysqli->prepare("INSERT INTO users (first_name,last_name,user,password) VALUES (?, ?, ?, ?);");
++		$stmt->bind_param("ssss", $_POST['txtFirst'], $_POST['txtLast'], $_POST['txtUser'], $_POST['txtPass']);
++	}
++
++	$stmt->execute();
++	$stmt->close();
++	$mysqli->close();
++}
++
+ $profile = "";
+ 
+ if(isset($_GET['id'])) {
+-    databaseConnect();
+-    $profile = mysql_fetch_row(mysql_query("SELECT first_name, last_name, user, password FROM users WHERE user_id =".$_GET['id']));
++	$mysqli = databaseConnect();
++	$stmt = $mysqli->prepare("SELECT first_name, last_name, user, password FROM users WHERE user_id = ?");
++	$stmt->bind_param("i", $_GET['id']);
++	$stmt->execute();
++	$stmt->bind_result($fn, $ln, $u, $p);
++	$stmt->fetch();
++
++	$stmt->close();
++	$mysqli->close();
+ }
+-$page = grabNewPage();
+ 
++$page = grabNewPage();
+ $page[ 'title' ] .= $page[ 'title_separator' ].'Welcome';
+-
+ $page[ 'page_id' ] = 'home';
+-
+ $page[ 'body' ] .= "This is your user Profile<br />
+     Feel free to make changes below:<br />
+     
+     <form enctype=\"multipart/form-data\" method=\"post\" name=\"userupdate\">
+     
+-    First Name *<br /><input name=\"txtFirst\" type=\"text\" size=\"30\" maxlength=\"15\" value=\"". $profile[0] . "\"><br/>
+-    Last Name *<br /><input name=\"txtLast\" type=\"text\" size=\"30\" maxlength=\"15\" value=\"". $profile[1] . "\"><br/>
+-    Username *<br /><input name=\"txtUser\" type=\"text\" size=\"30\" maxlength=\"15\" value=\"". $profile[2] . "\"><br/>
+-    Password *<br /><input name=\"txtPass\" type=\"text\" size=\"30\" maxlength=\"32\" value=\"". $profile[3] . "\"><br/>
++    First Name *<br /><input name=\"txtFirst\" type=\"text\" size=\"30\" maxlength=\"15\" value=\"". $fn . "\"><br/>
++    Last Name *<br /><input name=\"txtLast\" type=\"text\" size=\"30\" maxlength=\"15\" value=\"". $ln . "\"><br/>
++    Username *<br /><input name=\"txtUser\" type=\"text\" size=\"30\" maxlength=\"15\" value=\"". $u . "\"><br/>
++    Password *<br /><input name=\"txtPass\" type=\"text\" size=\"30\" maxlength=\"32\" value=\"". $p . "\"><br/>
+     <input name=\"btnSubmit\" type=\"submit\" value=\"Submit\"><br/>
+     
+     </form>
+-- 
+1.7.9.5
+

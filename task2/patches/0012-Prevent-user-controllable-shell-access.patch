@@ -1,0 +1,28 @@
+From d769422e6bd2ea9375c2cdd353a2a57073ffff22 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 22:45:21 +0200
+Subject: [PATCH 12/23] Prevent user controllable shell access
+
+---
+ includes/businessPage.inc.php |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index d520ca3..bddebfd 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -182,9 +182,9 @@ function htmlEcho( $pPage ) {
+     <input name=\"btnSubmit\" type=\"submit\" value=\"Submit\" onClick=\"return checkForm();\"><br/>
+     </form>";
+         
+-        $cmd = shell_exec( 'echo Weather report for:' . $city . ': ;shuf -i 0-40 -n 1; echo °C ' );
++        $cmd = shell_exec( 'shuf -i 0-40 -n 1' );
+         
+-        $menuHtml.= $cmd;
++        $menuHtml.= "Weather report for " . $city . ": " . $cmd . "°C";
+ 	
+ 	// Send Headers + main HTML code
+ 	Header( 'Cache-Control: no-cache, must-revalidate');		// HTTP/1.1
+-- 
+1.7.9.5
+

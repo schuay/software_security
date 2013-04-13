@@ -1,0 +1,75 @@
+From a55e8a4397695db14841c48d5551e841e4c3f67a Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 22:54:31 +0200
+Subject: [PATCH 13/23] Prevent XSS with htmlspecialchars()
+
+---
+ backend.php                   |    6 +++---
+ includes/businessPage.inc.php |    2 +-
+ profile.php                   |    5 ++++-
+ showArticle.php               |    3 ++-
+ 4 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/backend.php b/backend.php
+index 7aca909..875b425 100644
+--- a/backend.php
++++ b/backend.php
+@@ -24,9 +24,9 @@ if (isset($_POST['btnSubmit'])) {
+ 
+ 	}
+ 	if(isset($_POST['txtRef']))
+-		$content.="<br /><a href=\"redirect.php?url=". $_POST['txtRef'] ."\">External Reference </a>";
+-	$title=$_POST['txtTitle'];
+-	$name=$_POST['user'];
++		$content.="<br /><a href=\"redirect.php?url=". htmlspecialchars($_POST['txtRef']) ."\">External Reference </a>";
++	$title=htmlspecialchars($_POST['txtTitle']);
++	$name=htmlspecialchars($_POST['user']);
+ 	$published=gmdate("Y-m-d H:i:s");
+ 
+ 	$mysqli = databaseConnect();
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index bddebfd..e38c3af 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -171,7 +171,7 @@ function htmlEcho( $pPage ) {
+ 	$menuHtml .= '</ul>';
+ 	$city = 'Vienna';
+ 	if(isset($_POST['btnSubmit']))
+-		$city=$_POST['txtCity'];
++		$city=htmlspecialchars($_POST['txtCity']);
+ 	$menuHtml.="Get weather for your city:";
+ 
+ 	$menuHtml.="
+diff --git a/profile.php b/profile.php
+index b5ecad9..2931198 100644
+--- a/profile.php
++++ b/profile.php
+@@ -20,7 +20,10 @@ if (isset($_POST['btnSubmit'])) {
+ 
+ 	if($num_results > 0) {
+ 		$stmt = $mysqli->prepare("UPDATE users SET first_name=?, last_name=?, user=?, password=? WHERE user_id = ?");
+-		$stmt->bind_param("ssssi", $_POST['txtFirst'], $_POST['txtLast'], $_POST['txtUser'], $_POST['txtPass'], $id);
++		$stmt->bind_param("ssssi", htmlspecialchars($_POST['txtFirst']),
++                                  htmlspecialchars($_POST['txtLast']),
++                                  htmlspecialchars($_POST['txtUser']),
++                                  $_POST['txtPass'], $id);
+ 		$stmt->execute();
+ 		$stmt->close();
+ 	}
+diff --git a/showArticle.php b/showArticle.php
+index d3c9241..3345c1d 100644
+--- a/showArticle.php
++++ b/showArticle.php
+@@ -12,7 +12,8 @@ $page[ 'page_id' ] = 'home';
+ 
+ if(isset($_POST['btnSign']))
+ {
+-    postComment($_POST['mtxMessage'], $_POST['txtName'], $_GET['id']);
++    postComment(htmlspecialchars($_POST['mtxMessage']),
++                htmlspecialchars($_POST['txtName']), $_GET['id']);
+ }
+ 
+ $page[ 'body' ] .= fetchArticle($_GET['id'],$_GET['comments']);
+-- 
+1.7.9.5
+

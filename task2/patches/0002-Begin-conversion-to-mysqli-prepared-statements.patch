@@ -1,0 +1,94 @@
+From df23cb4508b32954400b86f847aae3df4f8bb4ee Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 20:57:59 +0200
+Subject: [PATCH 02/23] Begin conversion to mysqli prepared statements
+
+---
+ includes/businessPage.inc.php |   13 ++++++-------
+ login.php                     |   36 ++++++++++++++++--------------------
+ 2 files changed, 22 insertions(+), 27 deletions(-)
+
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index 345bf40..2e136f5 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -258,15 +258,14 @@ $DBMS_connError = '<div align="center">
+ 		</div>';
+ 
+ function databaseConnect() {
+-
+ 	global $_BUSINESS;
+-	global $DBMS;
+-	global $DBMS_connError;
+ 
+-		if( !@mysql_connect( $_BUSINESS[ 'db_server' ], $_BUSINESS[ 'db_user' ], $_BUSINESS[ 'db_password' ] )
+-		|| !@mysql_select_db( $_BUSINESS[ 'db_database' ] ) ) {
+-			die( $DBMS_connError );
+-		}
++	$mysqli = new mysqli($_BUSINESS[ 'db_server' ], $_BUSINESS[ 'db_user' ], $_BUSINESS[ 'db_password' ], $_BUSINESS[ 'db_database' ] );
++	if ($mysqli->connect_errno) {
++		die( $mysqli->connect_errno );
++	}
++
++	return $mysqli;
+ }
+ 
+ // -- END
+diff --git a/login.php b/login.php
+index f6fa4da..8af034f 100644
+--- a/login.php
++++ b/login.php
+@@ -6,34 +6,30 @@ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ 
+ startup( array() );
+ 
+-databaseConnect();
++$mysqli = databaseConnect();
+ 
+ if( isset( $_POST[ 'Login' ] ) ) {
+-
+-
+ 	$user = $_POST[ 'username' ];
+-
+ 	$pass = $_POST[ 'password' ];
+ 
+-	$qry = "SELECT * FROM `users` WHERE user='" . $user . "' AND password='" . $pass. "';";
+-
+-	$result = @mysql_query($qry) or die('<pre>' . mysql_error() . '</pre>' );
+-
+-	if( $result && mysql_num_rows( $result ) >= 1 ) {	// Login Successful...
++	$stmt = $mysqli->prepare("SELECT * FROM `users` WHERE user=? AND password=?;");
++	$stmt->bind_param("ss", $user, $pass);
++	$stmt->execute();
++	$stmt->store_result();
+ 
++	if( $stmt->num_rows >= 1) {	// Login Successful...
+ 		messagePush( "You have logged in as '".$user."'" );
+-		login( $user );
+-                if(isset($_POST['redirect'])){
+-                    redirect($_POST['redirect']);
+-                } else {
+-                    redirect( 'index.php' );
+-                }
+-
++		login($user);
++		if(isset($_POST['redirect'])){
++		    redirect($_POST['redirect']);
++		} else {
++		    redirect( 'index.php' );
++		}
++	} else {
++		// Login failed
++		messagePush( "Login failed" );
++		redirect( 'login.php' );
+ 	}
+-
+-	// Login failed
+-	messagePush( "Login failed" );
+-	redirect( 'login.php' );
+ }
+ 
+ $messagesHtml = messagesPopAllToHtml();
+-- 
+1.7.9.5
+

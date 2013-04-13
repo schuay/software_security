@@ -1,0 +1,152 @@
+From f97755f196d203e8c7089863c7afb77163ecdd3f Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 21:49:19 +0200
+Subject: [PATCH 08/23] Continue porting businessPage.inc.php
+
+---
+ includes/businessPage.inc.php |   51 ++++++++++++++---------------------------
+ 1 file changed, 17 insertions(+), 34 deletions(-)
+
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index 2284b8b..65673fd 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -54,48 +54,45 @@ function startup( $pActions ) {
+ 
+ 
+ function login( $pUsername ) {
+-
+ 	$businessSession =& sessionGrab();
+ 
+-	databaseConnect();
+-	$result = mysql_fetch_row(mysql_query("SELECT user_id FROM users where user='".$pUsername."'"));
++	$mysqli = databaseConnect();
++	$stmt = $mysqli->prepare("SELECT user_id FROM users where user=?");
++	$stmt->bind_param("s", $pUsername);
++	$stmt->execute();
++	$stmt->bind_result($id);
++	$stmt->fetch();
++	$stmt->close();
++	$mysqli->close();
+ 
+-	$businessSession['id'] = $result[0];
++	$businessSession['id'] = $id;
+ 	$businessSession['username'] = $pUsername;
+ 	$_SESSION['business'] = $businessSession;
+ }
+ 
+ 
+ function isLoggedIn() {
+-
+ 	$businessSession =& sessionGrab();
+-
+ 	return isset( $businessSession['username'] );
+-
+ }
+ 
+ 
+ function logout() {
+-
+ 	$businessSession =& sessionGrab();
+ 
+ 	unset( $businessSession['username'] );
+ 	unset( $businessSession['id'] );
+ 	session_destroy();
+-
+ }
+ 
+ 
+ function pageReload() {
+-
+ 	redirect( $_SERVER[ 'PHP_SELF' ] );
+-
+ }
+ 
+ // -- END
+ 
+ function &grabNewPage() {
+-
+ 	$returnArray = array(
+ 			'title' => 'Super secure and highly userfriendly web App',
+ 			'title_separator' => ' :: ',
+@@ -110,13 +107,9 @@ function &grabNewPage() {
+ 
+ // Start message functions -- 
+ function messagePush( $pMessage ) {
+-
+ 	$businessSession =& sessionGrab();
+-
+ 	if( !isset( $businessSession[ 'messages' ] ) ) {
+-
+ 		$businessSession[ 'messages' ] = array();
+-
+ 	}
+ 
+ 	$businessSession[ 'messages' ][] = $pMessage;
+@@ -125,13 +118,9 @@ function messagePush( $pMessage ) {
+ 
+ 
+ function messagePop() {
+-
+ 	$businessSession =& sessionGrab();
+-
+ 	if( !isset( $businessSession[ 'messages' ] ) || count( $businessSession[ 'messages' ] ) == 0 ) {
+-
+ 		return false;
+-
+ 	}
+ 
+ 	return array_shift( $businessSession[ 'messages' ] );
+@@ -139,13 +128,9 @@ function messagePop() {
+ 
+ 
+ function messagesPopAllToHtml() {
+-
+ 	$messagesHtml = '';
+-
+ 	while( $message = messagePop() ) {	// TODO- sharpen!
+-
+ 		$messagesHtml .= "<div class=\"message\">{$message}</div>";
+-
+ 	}
+ 
+ 	return $messagesHtml;
+@@ -153,7 +138,6 @@ function messagesPopAllToHtml() {
+ // --END
+ 
+ function htmlEcho( $pPage ) {
+-
+ 	$menuBlocks = array();
+ 
+ 	if(isLoggedIn()){
+@@ -279,19 +263,18 @@ function redirect( $pLocation ) {
+ 
+ 
+ function fetchArticles() {
+-	databaseConnect();
+-	$result = mysql_query("SELECT headline, created, published, id FROM article");
++	$mysqli = databaseConnect();
++	$result = $mysqli->query("SELECT a.headline, a.created, a.published, a.id, b.first_name, b.last_name FROM article a INNER JOIN users b ON a.published = b.user_id");
+ 
+ 	$articles = '<lu>';
+-
+-	while($row = mysql_fetch_row($result)){
+-
+-		$curauth = mysql_query("SELECT first_name, last_name FROM users WHERE user_id =".$row[2]);
+-		$name = mysql_fetch_row($curauth);
+-		$articles .= "<li><h3>$row[1]<br /><a href=\"showArticle.php?id=$row[3]&comments=0\">$row[0]</a></h3><p>$name[0] $name[1]</p></li>";
++	while($row = $result->fetch_array(MYSQLI_NUM)) {
++		$articles .= "<li><h3>$row[1]<br /><a href=\"showArticle.php?id=$row[3]&comments=0\">$row[0]</a></h3><p>$row[4] $row[5]</p></li>";
+ 	}
+-
+ 	$articles .= '</lu>';
++
++	$result->close();
++	$mysqli->close();
++
+ 	return $articles;
+ }
+ 
+-- 
+1.7.9.5
+

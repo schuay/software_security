@@ -1,0 +1,25 @@
+From 32fa5ae784fd8702d74b5461bd980d62bde1e071 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Fri, 12 Apr 2013 00:45:23 +0200
+Subject: [PATCH 18/23] Prevent overwriting other uploaded files
+
+---
+ backend.php |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/backend.php b/backend.php
+index 5bd3a69..c7a0a56 100644
+--- a/backend.php
++++ b/backend.php
+@@ -22,7 +22,7 @@ if (isset($_POST['btnSubmit'])) {
+ 			echo '<pre>Your image was not uploaded.</pre>';
+ 		} else {
+ 			$fname = $_FILES["uploaded"]["name"];
+-			$target_path = WEB_PAGE_TO_ROOT . "uploads/" . $fname;
++			$target_path = WEB_PAGE_TO_ROOT . "uploads/" . uniqid() . $fname;
+ 			move_uploaded_file($_FILES["uploaded"]["tmp_name"], $target_path);
+ 
+ 			$content.="<br /><img heigth=250 width=250 src=\"". $target_path ."\"> ";
+-- 
+1.7.9.5
+

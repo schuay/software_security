@@ -1,0 +1,68 @@
+From c01a941c4395299615f2a6868aec108c93dd5418 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Thu, 11 Apr 2013 22:22:43 +0200
+Subject: [PATCH 11/23] Disallow changing another user's profile
+
+---
+ includes/businessPage.inc.php |    2 +-
+ profile.php                   |   11 +++++++----
+ 2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index 59112d1..d520ca3 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -143,7 +143,7 @@ function htmlEcho( $pPage ) {
+ 	if(isLoggedIn()){
+ 		$menuBlocks['vulnerabilities'] = array();
+ 		$session= sessionGrab();
+-		$menuBlocks['vulnerabilities'][] = array( 'id' => 'profile', 'name' => 'Profile', 'url' => 'profile.php?id='. $session['id'] );
++		$menuBlocks['vulnerabilities'][] = array( 'id' => 'profile', 'name' => 'Profile', 'url' => 'profile.php' );
+ 		$menuBlocks['vulnerabilities'][] = array( 'id' => 'backend', 'name' => 'Add new Article', 'url' => 'backend.php' );
+ 		$menuBlocks['logout'] = array();
+ 		$menuBlocks['logout'][] = array( 'id' => 'logout', 'name' => 'Logout', 'url' => 'logout.php' );
+diff --git a/profile.php b/profile.php
+index 0205273..b5ecad9 100644
+--- a/profile.php
++++ b/profile.php
+@@ -5,11 +5,14 @@ define( 'WEB_PAGE_TO_ROOT', '' );
+ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ 
+ startup( array( 'authenticated', 'redirect'=>'profile.php' ) );
++
++$businessSession =& sessionGrab();
++$id = $businessSession['id'];
+         
+ if (isset($_POST['btnSubmit'])) {
+ 	$mysqli = databaseConnect();
+ 	$stmt = $mysqli->prepare("SELECT first_name, last_name, user, password FROM users WHERE user_id =?");
+-	$stmt->bind_param("i", $_GET['id']);
++	$stmt->bind_param("i", $id);
+ 	$stmt->execute();
+ 	$stmt->store_result();
+ 	$num_results = $stmt->num_rows;
+@@ -17,7 +20,7 @@ if (isset($_POST['btnSubmit'])) {
+ 
+ 	if($num_results > 0) {
+ 		$stmt = $mysqli->prepare("UPDATE users SET first_name=?, last_name=?, user=?, password=? WHERE user_id = ?");
+-		$stmt->bind_param("ssssi", $_POST['txtFirst'], $_POST['txtLast'], $_POST['txtUser'], $_POST['txtPass'], $_GET['id']);
++		$stmt->bind_param("ssssi", $_POST['txtFirst'], $_POST['txtLast'], $_POST['txtUser'], $_POST['txtPass'], $id);
+ 		$stmt->execute();
+ 		$stmt->close();
+ 	}
+@@ -27,10 +30,10 @@ if (isset($_POST['btnSubmit'])) {
+ 
+ $profile = "";
+ 
+-if(isset($_GET['id'])) {
++if(isset($id)) {
+ 	$mysqli = databaseConnect();
+ 	$stmt = $mysqli->prepare("SELECT first_name, last_name, user, password FROM users WHERE user_id = ?");
+-	$stmt->bind_param("i", $_GET['id']);
++	$stmt->bind_param("i", $id);
+ 	$stmt->execute();
+ 	$stmt->bind_result($fn, $ln, $u, $p);
+ 	$stmt->fetch();
+-- 
+1.7.9.5
+

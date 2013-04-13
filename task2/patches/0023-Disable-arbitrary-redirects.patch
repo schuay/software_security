@@ -1,0 +1,155 @@
+From 11f0bae68d170157a7f563c3b7c5e4fa467cd215 Mon Sep 17 00:00:00 2001
+From: root <root@softwaresecurity.(none)>
+Date: Fri, 12 Apr 2013 02:04:25 +0200
+Subject: [PATCH 23/23] Disable arbitrary redirects
+
+---
+ backend.php                   |    4 ++--
+ includes/businessPage.inc.php |   23 ++++++++++-------------
+ login.php                     |    4 ++--
+ logout.php                    |    4 ++--
+ profile.php                   |    2 +-
+ redirect.php                  |   10 ----------
+ 6 files changed, 17 insertions(+), 30 deletions(-)
+ delete mode 100644 redirect.php
+
+diff --git a/backend.php b/backend.php
+index 7af1d0e..4b0edcf 100644
+--- a/backend.php
++++ b/backend.php
+@@ -4,7 +4,7 @@ define( 'WEB_PAGE_TO_ROOT', '' );
+ 
+ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ 
+-startup( array( 'authenticated', 'redirect'=>'backend.php' ) );
++startup( array( 'authenticated', 'redirect'=>'backend' ) );
+ 
+ $businessSession =& sessionGrab();
+ $id = $businessSession['id'];
+@@ -44,7 +44,7 @@ if (isset($_POST['btnSubmit'])) {
+ 	}
+ 
+ 	if(isset($_POST['txtRef']))
+-		$content.="<br /><a href=\"redirect.php?url=". htmlspecialchars($_POST['txtRef']) ."\">External Reference </a>";
++		$content.="<br /><a href=\"". htmlspecialchars($_POST['txtRef']) ."\">External Reference </a>";
+ 	$title=htmlspecialchars($_POST['txtTitle']);
+ 	$name=htmlspecialchars($id);
+ 	$published=gmdate("Y-m-d H:i:s");
+diff --git a/includes/businessPage.inc.php b/includes/businessPage.inc.php
+index e473ca9..15dccd2 100644
+--- a/includes/businessPage.inc.php
++++ b/includes/businessPage.inc.php
+@@ -42,12 +42,7 @@ function startup( $pActions ) {
+ 
+ 	if( in_array( 'authenticated', $pActions ) ) {
+ 		if( !isLoggedIn()){
+-			if(array_key_exists( 'redirect', $pActions )) {
+-				redirect( WEB_PAGE_TO_ROOT.'login.php?redirect='.$pActions['redirect'] );
+-			} else {
+-				redirect( WEB_PAGE_TO_ROOT.'login.php');
+-			}
+-
++			redirect( 'login' );
+ 		}
+ 	}
+ }
+@@ -87,10 +82,6 @@ function logout() {
+ }
+ 
+ 
+-function pageReload() {
+-	redirect( $_SERVER[ 'PHP_SELF' ] );
+-}
+-
+ // -- END
+ 
+ function &grabNewPage() {
+@@ -257,9 +248,15 @@ function databaseConnect() {
+ 
+ function redirect( $pLocation ) {
+ 	session_commit();
+-	header( "Location: {$pLocation}" );
+-	exit;
+-
++	switch ($pLocation) {
++	case "index":
++	case "login":
++	case "logout":
++	case "backend":
++		header( "Location: {$pLocation}.php" );
++		break;
++	default:
++	}
+ }
+ 
+ 
+diff --git a/login.php b/login.php
+index 3f243c6..675c2b4 100644
+--- a/login.php
++++ b/login.php
+@@ -26,12 +26,12 @@ if( isset( $_POST[ 'Login' ] ) ) {
+ 		if(isset($_POST['redirect'])){
+ 		    redirect($_POST['redirect']);
+ 		} else {
+-		    redirect( 'index.php' );
++		    redirect( 'index' );
+ 		}
+ 	} else {
+ 		// Login failed
+ 		messagePush( "Login failed" );
+-		redirect( 'login.php' );
++		redirect( 'login' );
+ 	}
+ 
+ 	$stmt->close();
+diff --git a/logout.php b/logout.php
+index a85469c..2c290c6 100644
+--- a/logout.php
++++ b/logout.php
+@@ -6,12 +6,12 @@ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ startup( array() );
+ 
+ if( !isLoggedIn() ) {	
+-	redirect( 'login.php' );
++	redirect( 'login' );
+ }
+ 
+ logout();
+ messagePush( "You have logged out" );
+-redirect( 'index.php' );
++redirect( 'index' );
+ 
+ ?>
+ 
+diff --git a/profile.php b/profile.php
+index 9897928..51dd960 100644
+--- a/profile.php
++++ b/profile.php
+@@ -5,7 +5,7 @@ define( 'WEB_PAGE_TO_ROOT', '' );
+ require_once WEB_PAGE_TO_ROOT.'includes/businessPage.inc.php';
+ require_once("PasswordHash.php");
+ 
+-startup( array( 'authenticated', 'redirect'=>'profile.php' ) );
++startup( array( 'authenticated', 'redirect'=>'profile' ) );
+ 
+ $businessSession =& sessionGrab();
+ $id = $businessSession['id'];
+diff --git a/redirect.php b/redirect.php
+deleted file mode 100644
+index 4fe1b0d..0000000
+--- a/redirect.php
++++ /dev/null
+@@ -1,10 +0,0 @@
+-<?php
+-function startsWith($haystack, $needle)
+-{
+-    return !strncmp($haystack, $needle, strlen($needle));
+-}
+-if(!startsWith($_GET['url'],'http'))
+-    $_GET['url'] = 'http://' . $_GET['url'];
+-$redirect_url = $_GET['url'];
+-header("Location: " . $redirect_url);
+-?>
+-- 
+1.7.9.5
+
