@@ -1,0 +1,142 @@
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{comment}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\definecolor{OliveGreen}{cmyk}{0.64,0,0.95,0.40}
+\definecolor{Gray}{gray}{0.5}
+
+\lstset{
+    language=C,
+    basicstyle=\ttfamily,
+    keywordstyle=\color{OliveGreen},
+    commentstyle=\color{Gray},
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+    showspaces=false,
+    showtabs=false,
+    numbers=left,
+}
+
+\title{VU Software Security \\
+       SS 2013 \\
+       Task 3}
+\author{Jakob Gruber}
+
+\begin{document}
+
+\maketitle
+
+\section{Specification}
+
+When you try to run the binary, you'll immediately see that is not doing much,
+because it is controlled by some kind of trigger condition.
+
+This assignment consists in two parts:
+
+Analyze the binary and reveal the trigger that controls the execution of the
+program.  Reverse engineer the check, set the right condition and find the
+secret message.
+
+Recommended tools:
+
+Debugger, Hexeditor, ...
+
+Please upload a PDF with your report (you do not have to upload the modified
+binary)! 
+
+\section{Protocol}
+
+\begin{comment}
+step through with GDB,
+build control flow graph
+
+400ddf: ptrace control. first, step past with 'set $rax = 0', then substitute
+JGE opcode 08 DF with NOP; JMP codes 90 E9 for an unconditional jump.
+
+next bad jump could be at 4010e9: first try is to turn around the conditional (JNE instead of JE)
+
+again, JE->JNE at 401102
+
+f0 {
+  ...
+  x0 = ptrace()
+  if x0 < 0
+    print && exit
+  return
+}
+
+f1 {
+  ...
+  f0()
+  return
+}
+
+f2 {
+  ...
+  while (x1 != x2) 	// 0x401214
+    f1()		// fptr
+    x1++
+    goto 0x401200	// some magic going on here with function pointers
+  }
+  return to __libc_start_main()
+}
+
+f3 {
+  // some arithmetic going on
+}
+
+f4() { // 0x400c30
+  ...
+  SHA1()
+  ..
+  EVP_.....()
+  ...
+}
+
+f5() { // 0x404000
+  
+}
+
+main { // 0x4010d0
+  x0 = f3()
+  if (x == 0)			// needs to be != 0 at least at first!
+    goto l1
+
+  f4()
+  
+  rax = *0x402b00
+  if *rax == 0x540a6eeb
+    goto l2
+  
+  memcpy()
+  
+  for () { //26 times
+    // calc something
+  }
+
+  printf(you just fucked with the wrong bin)
+
+  ret
+
+l1:	// 40119e
+  printf(msg)
+  return
+
+l2: 	// 0x401185
+  f5()
+}
+
+__libc_start_main() {
+  f2()
+  main();
+}
+
+\end{comment}
+
+
+\end{document}
