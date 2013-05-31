@@ -61,6 +61,19 @@ unsigned char *SHA1(const unsigned char *d,
 
 typedef void EVP_CIPHER_CTX;
 
+int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out,
+                        int *outl, unsigned char *in, int inl)
+{
+	static int (*fn)(EVP_CIPHER_CTX *ctx, unsigned char *, int *, unsigned char *, int) = NULL;
+    if (!fn) {
+        fn = dlsym(RTLD_NEXT, "EVP_DecryptUpdate");
+    }
+    DEBUG(printf("PRE  EVP_DecryptUpdate(%x, %s, %d, %x, %x)\n", ctx, out, *outl, in, inl);)
+    int p = fn(ctx, out, outl, in, inl);
+    DEBUG(printf("POST EVP_DecryptUpdate(%x, %x: %s, %d, %x, %x) = %p\n", ctx, out, out, *outl, in, inl, p);)
+    return p;
+}
+
 int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *outm,
                 int *outl)
 {
