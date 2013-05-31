@@ -4,7 +4,7 @@
 \usepackage{comment}
 \usepackage[utf8]{inputenc}
 \usepackage{listings}
-\usepackage{hyperref}
+\usepackage[pdfborder={0 0 0}]{hyperref}
 
 \definecolor{OliveGreen}{cmyk}{0.64,0,0.95,0.40}
 \definecolor{Gray}{gray}{0.5}
@@ -51,49 +51,165 @@ binary)!
 
 \section{Protocol}
 
-\begin{comment}
-step through with GDB,
-build control flow graph
+Our first steps were to find out a little more obvious information about the binary:
 
-400ddf: ptrace control. first, step past with 'set $rax = 0', then substitute
-JGE opcode 08 DF with NOP; JMP codes 90 E9 for an unconditional jump.
+\begin{verbatim}
+$ file challenge
+challenge: ELF 64-bit LSB  executable, x86-64, version 1 (SYSV),
+dynamically linked (uses shared libs), for GNU/Linux 2.6.32, stripped
+$ strings challenge
+[...]
+$ strace ./challenge
+[...]
+$ ./challenge
+'arlogh Qoylu'pu'?
+\end{verbatim}
 
-next bad jump could be at 4010e9: first try is to turn around the conditional (JNE instead of JE)
+Running the binary itself outputs a scrambled string for now.
+\verb|strings| showed us all external library calls:
 
-annotated disassmbly (objdump -D)
+\begin{verbatim}
+perror
+mprotect
+ptrace
+printf
+sysconf
+signal
+alarm
+gettimeofday
+exit
+memalign
+EVP_CIPHER_CTX_cleanup
+EVP_CIPHER_CTX_init
+EVP_DecryptFinal_ex
+EVP_DecryptInit_ex
+EVP_DecryptUpdate
+EVP_aes_128_ofb
+SHA1
+memcpy
+sysconf
+memalign
+mprotect
+\end{verbatim}
 
-0x402b00 (in .bss) is obviously important. there's only one spot that sets it:
-  400f1b:	48 89 04 25 00 2b 40 	mov    %rax,0x402b00
+Just by looking at this list, we can tell a couple of things:
 
+\begin{itemize}
+\item \lstinline|ptrace|: The application probably tries to protect against attached debuggers
+\item \lstinline|alarm|: A SIGALARM signal is generated at some time
+\item \lstinline|gettimeofday|: The current time and date is used in some way
+\item \lstinline|EVP_*|: Data is decrypted using a symmetric cipher
+\item \lstinline|SHA1|: Something is being hashed
+\end{itemize}
 
-again, JE->JNE at 401102
+In hindsight, it seems fairly obvious that \lstinline|gettimeofday| was going to be important.
+If we would have followed the data retrieved by \lstinline|gettimeofday| instead of
+reverse engineering the entire binary, we could have saved much time.
 
-annotating around the SHA1() call -> SHA1() result is used as the key to
-the decrypt calls, and *0x4027d0 is hashed. that in turn is set by a combination
-of gettimeofday() and some bit masking (only upper 2 bytes are from gettimeofday).
-hooked into gettimeofday() calls and wrote a small exploit script to test all combinations:
+Next, we fired up GDB and ran into the \lstinline|ptrace| check, which was easily
+disabled by replacing the original \lstinline|JGE| opcode with an unconditional jump
+\lstinline|NOP; JMP|.
 
+\begin{lstlisting}
+  400dda:	e8 a1 fc ff ff       	callq  400a80 <ptrace@plt>
+  400ddf:	48 3d 00 00 00 00    	cmp    $0x0,%rax
+  400de5:	90                   	nop
+  400de6:	e9 7b 00 00 00       	jmpq   400e66 <mprotect@plt+0x346>
+\end{lstlisting}
+
+We then spent several hours reverse engineering the assembly code, building something
+resembling a control flow graph, and trying different conditional jump branches by
+poking at register values with GDB. We tried things such as removing the \lstinline|alarm|
+call, or switching several conditional jumps which lead to \lstinline|printf(); exit();| sections.
+Sadly, none of this had any effect other than producing various segfaults.
+
+Our next attack vector was to hook into interesting library function calls and
+print their arguments. A snippet of the hook library is reproduced here:
+
+\begin{lstlisting}
+unsigned char *SHA1(const unsigned char *d,
+                    unsigned long n,
+                    unsigned char *md)
+{    
+	static unsigned char *(*fn)(const unsigned char *, unsigned long, unsigned char *) = NULL;
+    if (!fn) {
+        fn = dlsym(RTLD_NEXT, "SHA1");
+    }
+    DEBUG(printf("PRE  SHA1(%s, %d, %s)\n", d, n, md);)
+    DEBUG(hexdump("d", d, n);)
+    unsigned char *p = fn(d, n, md);
+    DEBUG(printf("POST SHA1(%s, %d, %s) = %s\n", d, n, md, p);)
+    DEBUG(hexdump("md", md, 20);)
+    return p;
+}
+\end{lstlisting}
+
+The hook may be attached by preloading it:
+
+\begin{verbatim}
+$ LD_PRELOAD=$(pwd)/hook.so ./challenge
+\end{verbatim}
+
+Again, this did not produce any new results. After a good night's sleep,
+we decided to get back to analyzing the disassembly. Two addresses in particular
+appeared to be interesting: \verb|0x402b00| and \verb|0x4027d0|. We began
+by following accesses to the latter address.
+
+This address is first set to \lstinline_(time & 0xffff0000) | 0x0000c0de)_, and later
+hashed by \lstinline|SHA1()|. The result is then used as the key to decrypt some data segment.
+Seems like we hit the jackpot! Since only two bytes are used from the time returned by 
+\lstinline|gettimeofday|, the search space is rather small and can easily be brute-forced.
+
+We proceeded to do this by instrumenting our hook to override the time returned by \lstinline|gettimeofday| with the value of an environment variable:
+
+\begin{lstlisting}
+const char *time = getenv("REAL_TIME");
+int p = fn(tp, tzp);
+
+if (time != NULL) {
+    int t = strtol(time, NULL, 16);
+    int *tpp = tp;
+    *tpp = t;
+}
+\end{lstlisting}
+
+A short groovy script found the correct \lstinline|gettimeofday| value within a minute or two:
+
+\begin{lstlisting}
+final workingDir = new File('.').getCanonicalPath()
+
+(0x0000 .. 0xffff).each {
+    final time = it * 0x10000
+    final proc = "./challenge".execute(["REAL_TIME=${Integer.toHexString(time)}", "LD_PRELOAD=$workingDir/hook.so"], null)
+
+    stdout = proc.in.text
+    if (!(stdout =~ /^'arlogh Qoylu'pu'?/)) {
+        print "time: ${Integer.toHexString(time)}: $stdout"
+    }
+}
+\end{lstlisting}
+
+\begin{verbatim}
 $ groovy Exploit/src/Exploit.groovy 
 time: af6a0000: This is not the secret you are looking for!
 To dig deeper you have!
+\end{verbatim}
 
--> the key is 0xaf60c0de
+Maybe there's some more stuff hidden in the decrypted data. Hooking into \lstinline|EVP_DecryptUpdate|,
+we receive:
 
-set the key statically in our hook.
-
-http://strace.git.sourceforge.net/git/gitweb.cgi?p=strace/strace;a=blob;f=linux/x86_64/syscallent.h;h=8e3a2007ad7bda8fbc7318fd081c6fff3ed2a369;hb=HEAD
-http://stackoverflow.com/questions/2535989/what-are-the-calling-conventions-for-unix-linux-system-calls-on-x86-64
-http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
-
-hooking into EVP_DecryptUpdate, we receive: 
-POST EVP_DecryptUpdate(717eaaf0, 7bc000: �n
+\begin{verbatim}
+POST EVP_DecryptUpdate(717eaaf0, 7bc000: 
 The secret is: "The truth is out there!"
 This is not the secret you are looking for!
-To dig deeper you have!
-H1�H1�H1�H��H��H�5����H��DH1�H��<H1�, 160, 402800, a0) = 0x7f6900000001
+To dig deeper you have!, 160, 402800, a0) = 0x7f6900000001
+\end{verbatim}
 
-final reconstruction:
+The secret seems to be: \emph{The truth is out there!}.
 
+The following is our final reconstruction of the relevant parts of the program:
+
+\begin{lstlisting}
 0x402b00 := fptr
 0x4027d0 := key
 
@@ -122,8 +238,8 @@ main {
   // uses SHA1(key) as the key to decrypt data into fptr.
   // fptr[0..3] = 0x540a6eeb (jmp to fptr + ??)
   // fptr[4..?] = "The secret is: "The truth is out there!"
-		  This is not the secret you are looking for!
-		  To dig deeper you have!"
+  //		  This is not the secret you are looking for!
+  //		  To dig deeper you have!"
   // fptr[...] = ?
   sha1_and_evp();
 
@@ -140,84 +256,16 @@ fptr() {
 					// To dig deeper you have!"
   exit(0);
 }
+\end{lstlisting}
 
+The following links were our main references during this task:
 
+\begin{itemize}
+\item Syscall numbers: \url{http://strace.git.sourceforge.net/git/gitweb.cgi?p=strace/strace;a=blob;f=linux/x86_64/syscallent.h;h=8e3a2007ad7bda8fbc7318fd081c6fff3ed2a369;hb=HEAD}
+\item Callings conventions: \url{http://stackoverflow.com/questions/2535989/what-are-the-calling-conventions-for-unix-linux-system-calls-on-x86-64}
+\item \lstinline|__libc_start_main| tutorial: \url{http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html}
+\end{itemize}
 
-f0 {
-  ...
-  x0 = ptrace()
-  if x0 < 0
-    print && exit
-  return
-}
-
-f1 {
-  ...
-  f0()
-  return
-}
-
-f2 {
-  ...
-  while (x1 != x2) 	// 0x401214
-    f1()		// fptr
-    x1++
-    goto 0x401200	// some magic going on here with function pointers
-  }
-  return to __libc_start_main()
-}
-
-f3 {
-  // some arithmetic going on
-}
-
-f4() { // 0x400c30
-  ...
-  SHA1()
-  ..
-  EVP_.....()
-  ...
-}
-
-f5() { // 0x404000
-  
-}
-
-main { // 0x4010d0
-  x0 = f3()
-  if (x == 0)			// needs to be != 0 at least at first!
-    goto l1
-
-  f4()
-  
-  rax = *0x402b00
-  if *rax == 0x540a6eeb
-    goto l2
-  
-  memcpy()
-  
-  for () { //26 times
-    // calc something
-  }
-
-  printf(you just fucked with the wrong bin)
-
-  ret
-
-l1:	// 40119e
-  printf(msg)
-  return
-
-l2: 	// 0x401185
-  f5()
-}
-
-__libc_start_main() {
-  f2()
-  main();
-}
-
-\end{comment}
-
+The entire annotated disassembly is included as a separate file.
 
 \end{document}
