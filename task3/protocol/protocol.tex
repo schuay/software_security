@@ -60,7 +60,36 @@ JGE opcode 08 DF with NOP; JMP codes 90 E9 for an unconditional jump.
 
 next bad jump could be at 4010e9: first try is to turn around the conditional (JNE instead of JE)
 
+annotated disassmbly (objdump -D)
+
+0x402b00 (in .bss) is obviously important. there's only one spot that sets it:
+  400f1b:	48 89 04 25 00 2b 40 	mov    %rax,0x402b00
+
+
 again, JE->JNE at 401102
+
+annotating around the SHA1() call -> SHA1() result is used as the key to
+the decrypt calls, and *0x4027d0 is hashed. that in turn is set by a combination
+of gettimeofday() and some bit masking (only upper 2 bytes are from gettimeofday).
+hooked into gettimeofday() calls and wrote a small exploit script to test all combinations:
+
+$ groovy Exploit/src/Exploit.groovy
+time: af6a0000: This is not the secret you are looking for!
+To dig deeper you have!
+
+-> the key is 0xaf60c0de
+
+set the key statically in our hook.
+
+http://strace.git.sourceforge.net/git/gitweb.cgi?p=strace/strace;a=blob;f=linux/x86_64/syscallent.h;h=8e3a2007ad7bda8fbc7318fd081c6fff3ed2a369;hb=HEAD
+http://stackoverflow.com/questions/2535989/what-are-the-calling-conventions-for-unix-linux-system-calls-on-x86-64
+
+hooking into EVP_DecryptUpdate, we receive:
+POST EVP_DecryptUpdate(717eaaf0, 7bc000: �n
+The secret is: "The truth is out there!"
+This is not the secret you are looking for!
+To dig deeper you have!
+H1�H1�H1�H��H��H�5����H��DH1�H��<H1�, 160, 402800, a0) = 0x7f6900000001
 
 f0 {
   ...
