@@ -73,7 +73,7 @@ the decrypt calls, and *0x4027d0 is hashed. that in turn is set by a combination
 of gettimeofday() and some bit masking (only upper 2 bytes are from gettimeofday).
 hooked into gettimeofday() calls and wrote a small exploit script to test all combinations:
 
-$ groovy Exploit/src/Exploit.groovy
+$ groovy Exploit/src/Exploit.groovy 
 time: af6a0000: This is not the secret you are looking for!
 To dig deeper you have!
 
@@ -83,13 +83,65 @@ set the key statically in our hook.
 
 http://strace.git.sourceforge.net/git/gitweb.cgi?p=strace/strace;a=blob;f=linux/x86_64/syscallent.h;h=8e3a2007ad7bda8fbc7318fd081c6fff3ed2a369;hb=HEAD
 http://stackoverflow.com/questions/2535989/what-are-the-calling-conventions-for-unix-linux-system-calls-on-x86-64
+http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
 
-hooking into EVP_DecryptUpdate, we receive:
+hooking into EVP_DecryptUpdate, we receive: 
 POST EVP_DecryptUpdate(717eaaf0, 7bc000: �n
 The secret is: "The truth is out there!"
 This is not the secret you are looking for!
 To dig deeper you have!
 H1�H1�H1�H��H��H�5����H��DH1�H��<H1�, 160, 402800, a0) = 0x7f6900000001
+
+final reconstruction:
+
+0x402b00 := fptr
+0x4027d0 := key
+
+from __libc_start_main->__libc_csu_init->initarray[2]:
+{
+  alarm(1);
+  signal(SIGALARM, 0x400db0);
+
+  // sets up 0x4027d0 which is used later as as the key to
+  // decryption through SHA1()
+  gettimeofday(&time, NULL);
+  *0x4027d0 = some_transformation(time);
+
+  // *0x402b00 = memalign(), sets up dynamic memory area
+  sysconf();
+  *0x402b00 = memalign(4096, 16384);
+
+  mprotect()
+}
+
+main {
+  if (do_weird_calcs() == 0) {
+    print error and exit;
+  }
+  
+  // uses SHA1(key) as the key to decrypt data into fptr.
+  // fptr[0..3] = 0x540a6eeb (jmp to fptr + ??)
+  // fptr[4..?] = "The secret is: "The truth is out there!"
+		  This is not the secret you are looking for!
+		  To dig deeper you have!"
+  // fptr[...] = ?
+  sha1_and_evp();
+
+  if (fptr[0] == 0x540a6eeb) {
+    fptr();
+    return;
+  }
+
+  ...
+}
+
+fptr() {
+  write(STDOUT_FILENO, 0x40402c, 0x44); // This is not the secret you are looking for!
+					// To dig deeper you have!"
+  exit(0);
+}
+
+
 
 f0 {
   ...
