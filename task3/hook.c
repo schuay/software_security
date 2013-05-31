@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 
+#define DEBUG(p)
+
 static void
 hexdump(const char *label,
         const char *p,
@@ -21,19 +23,23 @@ int gettimeofday(void *tp, void *tzp)
     if (!fn) {
         fn = dlsym(RTLD_NEXT, "gettimeofday");
     }
-    printf("PRE  gettimeofday(%x, %x)\n", tp, tzp);
+    DEBUG(printf("PRE  gettimeofday(%x, %x)\n", tp, tzp);)
     const char *time = getenv("REAL_TIME");
     int p = fn(tp, tzp);
 
     if (time != NULL) {
         int t = strtol(time, NULL, 16);
-        printf("Overriding time with: %x\n", t);
+        DEBUG(printf("Overriding time with: %x\n", t);)
         int *tpp = tp;
         *tpp = t;
+    } else {
+        DEBUG(printf("Overriding time with: %x\n", 0xaf6a0000);)
+        int *tpp = tp;
+        *tpp = 0xaf6a0000;
     }
 
-    printf("POST gettimeofday(%x, %x) = %d\n", tp, tzp, p);
-    printf("tp: %x\n", *((int *)tp));
+    DEBUG(printf("POST gettimeofday(%x, %x) = %d\n", tp, tzp, p);)
+    DEBUG(printf("tp: %x\n", *((int *)tp));)
     return p;
 }
 
@@ -45,13 +51,11 @@ unsigned char *SHA1(const unsigned char *d,
     if (!fn) {
         fn = dlsym(RTLD_NEXT, "SHA1");
     }
-    printf("PRE  SHA1(%s, %d, %s)\n", d, n, md);
-    hexdump("d", d, n);
-    const unsigned char d_[] = { 0xde, 0xc0, 0xad, 0xde };
-    hexdump("d_", d_, n);
-    unsigned char *p = fn(d_, n, md);
-    printf("POST SHA1(%s, %d, %s) = %s\n", d, n, md, p);
-    hexdump("md", md, 20);
+    DEBUG(printf("PRE  SHA1(%s, %d, %s)\n", d, n, md);)
+    DEBUG(hexdump("d", d, n);)
+    unsigned char *p = fn(d, n, md);
+    DEBUG(printf("POST SHA1(%s, %d, %s) = %s\n", d, n, md, p);)
+    DEBUG(hexdump("md", md, 20);)
     return p;
 }
 
@@ -64,9 +68,9 @@ int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *outm,
     if (!fn) {
         fn = dlsym(RTLD_NEXT, "EVP_DecryptFinal_ex");
     }
-    printf("PRE  EVP_DecryptFinal_ex(%x, %s, %d)\n", ctx, outm, *outl);
+    DEBUG(printf("PRE  EVP_DecryptFinal_ex(%x, %s, %d)\n", ctx, outm, *outl);)
     int p = fn(ctx, outm, outl);
-    printf("POST EVP_DecryptFinal_ex(%x, %s, %d) = %p\n", ctx, outm, *outl, p);
-    hexdump("outm", outm, *outl);
+    DEBUG(printf("POST EVP_DecryptFinal_ex(%x, %s, %d) = %p\n", ctx, outm, *outl, p);)
+    DEBUG(hexdump("outm", outm, *outl);)
     return p;
 }
