@@ -807,6 +807,8 @@ Disassembly of section .plt:
 
 Disassembly of section .text:
 
+# begin _start()
+
 0000000000400b30 <.text>:
   400b30:	31 ed                	xor    %ebp,%ebp
   400b32:	49 89 d1             	mov    %rdx,%r9
@@ -820,6 +822,9 @@ Disassembly of section .text:
   400b4d:	48 c7 c7 d0 10 40 00 	mov    $0x4010d0,%rdi
   400b54:	e8 97 fe ff ff       	callq  4009f0 <__libc_start_main@plt>
   400b59:	f4                   	hlt    
+
+# end _start()
+
   400b5a:	66 90                	xchg   %ax,%ax
   400b5c:	0f 1f 40 00          	nopl   0x0(%rax)
   400b60:	b8 e7 2a 40 00       	mov    $0x402ae7,%eax
@@ -867,7 +872,7 @@ Disassembly of section .text:
   400bea:	f3 c3                	repz retq 
   400bec:	0f 1f 40 00          	nopl   0x0(%rax)
 
-# begin f1()
+# begin f0()
 
   400bf0:	48 83 3d e0 1e 00 00 	cmpq   $0x0,0x1ee0(%rip)        # 402ad8 <_fini+0x18a4>
   400bf7:	00 
@@ -1213,6 +1218,7 @@ Disassembly of section .text:
   4010fb:	00 
   4010fc:	81 38 eb 6e 0a 54    	cmpl   $0x540a6eeb,(%rax)           # if *%rax == 0x540a6eeb
   401102:	0f 84 7d 00 00 00    	je     401185 <mprotect@plt+0x665>  # jump to indirect_fn_call
+
   401108:	48 8d 34 25 a0 12 40 	lea    0x4012a0,%rsi                # %rsi = 0x4012a0
   40110f:	00 
   401110:	48 ba 27 00 00 00 00 	movabs $0x27,%rdx                   # %rdx = 0x27
@@ -1289,6 +1295,9 @@ Disassembly of section .text:
   4011b8:	c3                   	retq   
 
   4011b9:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+
+# begin init(), called before main()
+
   4011c0:	41 57                	push   %r15
   4011c2:	41 89 ff             	mov    %edi,%r15d
   4011c5:	41 56                	push   %r14
@@ -1312,7 +1321,7 @@ Disassembly of section .text:
   401200:	4c 89 ea             	mov    %r13,%rdx                # ~ while ... {
   401203:	4c 89 f6             	mov    %r14,%rsi
   401206:	44 89 ff             	mov    %r15d,%edi
-  401209:	41 ff 14 dc          	callq  *(%r12,%rbx,8)           # call several fns, including f1() which sets up 0x402b00
+  401209:	41 ff 14 dc          	callq  *(%r12,%rbx,8)           # call initializers: f0() andf1() which sets up 0x402b00
   40120d:	48 83 c3 01          	add    $0x1,%rbx
   401211:	48 39 eb             	cmp    %rbp,%rbx
   401214:	75 ea                	jne    401200 <mprotect@plt+0x6e0> # }
@@ -1325,9 +1334,14 @@ Disassembly of section .text:
   401222:	41 5f                	pop    %r15
   401224:	c3                   	retq                            # return to __libc_start_main
 
+# end init()
+
   401225:	66 66 2e 0f 1f 84 00 	data32 nopw %cs:0x0(%rax,%rax,1)
   40122c:	00 00 00 00 
-  401230:	f3 c3                	repz retq 
+
+# begin atexit()
+
+  401230:	f3 c3                	repz retq                       # empty function
   401232:	66 90                	xchg   %ax,%ax
 
 Disassembly of section .fini:
